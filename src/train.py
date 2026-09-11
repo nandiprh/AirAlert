@@ -3,7 +3,8 @@
 Pipeline (mirrors README methodology):
   1. Load UCI or India city AQI data (processed CSV when available).
   2. Preprocess + data-leakage checks (sequential split before windowing).
-  3. Train/Validation/Test split (70/15/15) OR 10-fold time-series CV.
+  3. Train/Test split (80:20 by default, val carved from train tail unless
+     --val-frac is set) OR 10-fold time-series CV.
   4. SMOTE oversampling on TRAINING data only (classification imbalance).
   5. Train each requested model.
   6. Overfit/underfit detection and automatic correction (dropout bump,
@@ -190,8 +191,15 @@ def preprocess_dataset(
     num_classes: int = 4,
     city: Optional[str] = None,
     scale_target: bool = True,
+    train_frac: float = 0.8,
+    val_frac: float = 0.0,
 ) -> Dict:
     """Load + preprocess data into leakage-free train/val/test windows.
+
+    Default split is 80% train / 20% test. If ``val_frac`` is 0 (the default),
+    a small validation tail is carved from the END of the TRAINING partition
+    (never from test) so early-stopping / overfit detection still has a
+    monitor set. SMOTE is later applied only to the training split.
 
     The raw series is split BEFORE windowing so no window crosses
     partition boundaries (temporal leakage check). Returns arrays,
@@ -241,10 +249,23 @@ def preprocess_dataset(
     n = len(X_raw)
     if n <= seq_len + 3:
         raise ValueError("Not enough samples after cleaning for the requested seq_len")
-    n_train = int(n * 0.70)
-    n_val = int(n * 0.15)
-    n_test = n - n_train - n_val
-    print(f"[preprocess] temporal split  train={n_train}  val={n_val}  test={n_test}")
+
+    if not 0.0 < train_frac < 1.0:
+        raise ValueError("--train-frac must be in (0, 1)")
+    if not 0.0 <= val_frac < 1.0:
+        raise ValueError("--val-frac must be in [0, 1)")
+
+    n_test = n - int(n * train_frac)
+    if val_frac > 0:
+        n_val = int(n * val_frac)
+        n_train = n - n_test - n_val
+        val_from = "data tail"
+    else:
+        # carve a monitor/validation set from the tail of the 80% train block
+        n_val = int(n * 0.80) // 10
+        n_train = n - n_test - n_val
+        val_from = "carved from train tail"
+    print(f"[preprocess] split 80:20 -> train={n_train}  val={n_val} ({val_from})  test={n_test}")
 
     def build_windows(lo: int, hi: int):
         rows = np.arange(lo + seq_len, hi)
@@ -752,6 +773,10 @@ def parse_args():
                    default="both")
     p.add_argument("--num_classes", type=int, default=4)
     p.add_argument("--split_mode", choices=["holdout", "cv10"], default="holdout")
+    p.add_argument("--train-frac", dest="train_frac", type=float, default=0.8,
+                   help="train/test split ratio (default 0.8 = 80:20)")
+    p.add_argument("--val-frac", dest="val_frac", type=float, default=0.0,
+                   help="explicit validation fraction (0 = carve val from train tail)")
     p.add_argument("--city", default=None,
                    help="india city to use (default: most frequent)")
     p.add_argument("--seed", type=int, default=42)
@@ -804,7 +829,8 @@ def main():
         return
 
     data = preprocess_dataset(args.dataset, seq_len=args.seq_len, task=args.task,
-                              num_classes=args.num_classes, city=args.city)
+                              num_classes=args.num_classes, city=args.city,
+                              train_frac=args.train_frac, val_frac=args.val_frac)
     print(f"[data] windows: train={data['metadata']['n_train']} "
           f"val={data['metadata']['n_val']} test={data['metadata']['n_test']} "
           f"features={data['metadata']['input_size']}")

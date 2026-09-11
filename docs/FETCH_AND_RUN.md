@@ -178,6 +178,10 @@ Hyperparameters (CLI args):
 - `--epochs`, `--batch_size`, `--lr`, `--seq_len`, `--hidden_size`, `--dropout`
 - `--cv10`: enable 10-fold cross-validation
 - `--smote`: enable SMOTE balancing (on training split only)
+- `--train-frac`: train/test split ratio (default `0.8` = 80:20); SMOTE is
+  applied to the 80% training split only
+- `--val-frac`: explicit validation fraction (default `0.0`, which carves a
+  small validation tail from the END of the training block for early stopping)
 
 Checkpoints saved to: `models/checkpoints/`
 Metrics saved to: `models/reports/<model_name>_metrics.json`

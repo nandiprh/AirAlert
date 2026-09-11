@@ -149,7 +149,7 @@ Data Preprocessing  (src/data/preprocess.py)
 ↓
 Data Leakage Checks  (duplicates, suspicious correlations)
 ↓
-Train / Validation / Test Split  (70/15/15)  or  10-fold Cross Validation
+Train / Test Split  (80:20)  or  10-fold Cross Validation
 ↓
 SMOTE Algorithm  (balancing on TRAINING data only)
 ↓
