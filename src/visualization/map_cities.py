@@ -86,7 +86,7 @@ def state_predicted_mean(pred):
 def build_india_map(pred, states):
     log("Building India city-prediction map (folium)...")
     m = folium.Map(location=[22.5, 79.5], zoom_start=5,
-                   tiles="OpenStreetMap")
+                   tiles="CartoDB positron")
 
     state_means = state_predicted_mean(pred)
     def style(feature):
@@ -202,11 +202,11 @@ def build_world_map(pred, world_geojson, path_html, path_png):
         text=pred["city"].tolist(),
         textposition="top center",
         textfont=dict(size=11, color="#111"),
-        customdata=pred[["predicted_aqi", "bucket", "forecast_date"]]
+        customdata=pred[["city", "predicted_aqi", "bucket", "forecast_date"]]
                   .to_numpy(),
         hovertemplate=(
-            "<b>%{text}</b><br>Predicted AQI: %{customdata[0]} "
-            "(%{customdata[1]})<br>Forecast date: %{customdata[2]}"
+            "<b>%{customdata[0]}</b><br>Predicted AQI: %{customdata[1]} "
+            "(%{customdata[2]})<br>Forecast date: %{customdata[3]}"
             "<extra></extra>"),
         showlegend=True))
     fig.update_geos(showframe=False, projection_type="natural earth",

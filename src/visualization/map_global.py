@@ -462,7 +462,7 @@ def save_india_folium(standings, city_state, html_path):
     import folium
     import branca.colormap
 
-    m = folium.Map(location=[22.5, 79.5], zoom_start=5, tiles="OpenStreetMap")
+    m = folium.Map(location=[22.5, 79.5], zoom_start=5, tiles="CartoDB positron")
 
     style_fn = lambda f: {
         "fillColor": bucket_color(
