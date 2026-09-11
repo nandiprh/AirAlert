@@ -11,4 +11,35 @@ This system predicts future air quality and identify potential pollution hotspot
 4. Transformer + LSTM
 5. convLSTM + Attention
 
+The datasets are collected from 
+OpenAQ
+UCI air quality dataset
+India Open Govt. Data air quality datasets
 
+The output is =====>
+
+AQI forecast -> pollutant forecast -> hotspot msp -> public warning
+
+=====================================================================================>
+
+For CSV file classification problem and class imbalance handling, a sequence is:
+
+Load CSV Dataset
+↓
+Data Preprocessing
+↓
+Data Leakage Checks
+Target leakage • duplicate leakage • suspicious features
+↓
+    1. Train / Validation / Test Split or Train / Test Split
+    2. 10-fold cross validation
+↓
+SMOTE Algorithm (balancing dataset on TRAINING data only)
+↓
+Initial Model Training
+↓
+Overfitting / Underfitting Detection and Rectification
+↓
+Apply Correction Technique and Retrain
+↓
+Final Test Evaluation
