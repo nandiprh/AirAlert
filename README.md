@@ -23,23 +23,26 @@ AQI forecast -> pollutant forecast -> hotspot msp -> public warning
 =====================================================================================>
 
 For CSV file classification problem and class imbalance handling, a sequence is:
+```txt
+                                             Load CSV Dataset
+                                                    ↓
+                                            Data Preprocessing
+                                                    ↓
+                                            Data Leakage Checks
 
-Load CSV Dataset
-↓
-Data Preprocessing
-↓
-Data Leakage Checks
-Target leakage • duplicate leakage • suspicious features
-↓
-    1. Train / Validation / Test Split or Train / Test Split
-    2. 10-fold cross validation
-↓
-SMOTE Algorithm (balancing dataset on TRAINING data only)
-↓
-Initial Model Training
-↓
-Overfitting / Underfitting Detection and Rectification
-↓
-Apply Correction Technique and Retrain
-↓
-Final Test Evaluation
+                          
+                          Target leakage • duplicate leakage • suspicious features
+                                                    ↓
+                            1. Train / Validation / Test Split or Train / Test Split
+                            2. 10-fold cross validation
+                                                    ↓
+                        SMOTE Algorithm (balancing dataset on TRAINING data only)
+                                                    ↓
+                                            Initial Model Training
+                                                    ↓
+                            Overfitting / Underfitting Detection and Rectification
+                                                    ↓
+                                Apply Correction Technique and Retrain
+                                                    ↓
+                                            Final Test Evaluation
+```
