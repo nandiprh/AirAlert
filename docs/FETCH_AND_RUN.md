@@ -22,7 +22,7 @@ pip install -r requirements.txt
 Key packages (CPU-only PyTorch):
 - `torch==2.14.0+cpu` — all 5 hybrid DL models
 - `pandas`, `numpy`, `scipy`, `scikit-learn`, `imbalanced-learn` — data/ML
-- `matplotlib`, `plotly`, `folium` — static + interactive maps
+- `matplotlib`, `plotly`, `folium`, `kaleido` — static + interactive maps + PNG export
 - `geopandas`, `shapely`, `pyproj` — geospatial point-in-polygon
 
 ---
@@ -228,7 +228,47 @@ Color scale (both maps):
 
 ---
 
-## 7. Pipeline Overview
+## 7. City-Wise Prediction (next-day AQI)
+
+Per-city forecast + city-level predicted-AQI maps. Each city is rendered at a
+coordinate from the **hardcoded location table** `data/external/city_locations.csv`
+(`code,city,country,state,lat,lon`), so a predicted "Delhi" always lands on Delhi
+(no fuzzy matching). Fallbacks: `FALLBACK_CITY_COORDS`, then exact match in
+`data/raw/india_cities.csv`.
+
+```bash
+source .venv/bin/activate
+
+# Train one model per Indian city on 80:20 temporal split (SMOTE on train only)
+# and forecast next-day AQI. Defaults: 26 cities, lstm_cnn, 30 epochs, seq_len 7.
+python src/predict.py --model lstm_cnn --epochs 30 --seq_len 7
+
+# Options:
+#   --city Delhi        forecast only Delhi
+#   --model all         ensemble average across all 5 hybrid models
+#   --max-cities N      limit city count (dev runs)
+#   --no_smote          disable SMOTE balancing
+
+# Draw the city-wise maps
+python src/visualization/map_cities.py
+```
+
+Data written:
+- `data/processed/predictions/city_predictions.csv` — city, state, lat, lon,
+  forecast_date, predicted_aqi, bucket
+- `models/reports/city_predictions_summary.json` — per-city flagged auto-corrections
+
+Maps in `output/`:
+- `india_city_predictions.html` / `.png` — states colored by predicted mean AQI +
+  city markers colored by predicted bucket (hover shows city, AQI, bucket, dates)
+- `world_city_predictions.html` / `.png` — world choropleth + predicted city markers
+
+Cities with insufficient valid history (e.g. Ahmedabad, Ernakulam, Jorapokhar,
+Lucknow drop almost all rows during NaN cleaning) are skipped with a log message.
+
+---
+
+## 8. Pipeline Overview
 
 ```
 data/raw/                     ← raw downloaded files
@@ -243,7 +283,10 @@ src/data/openaq_loader.py     ← OpenAQ station enrichment + country assignment
 src/models/*.py               ← 5 hybrid DL architectures (PyTorch)
 src/train.py                  ← train loop with SMOTE, CV, overfit detection
 src/evaluate.py               ← test evaluation + plots
+src/predict.py                ← per-city next-day AQI forecast
 src/visualization/map_global.py ← colored world + India maps
+src/visualization/map_cities.py ← city-wise prediction maps
+src/visualization/location_table.py ← hardcoded city → coordinate resolution
 
 output/                       ← map HTML + PNG files
 models/checkpoints/           ← saved .pt model files

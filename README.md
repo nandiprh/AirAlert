@@ -48,6 +48,20 @@ Run `python src/visualization/map_global.py` to generate:
 `output/india_aqi_map.html` — Folium map, Indian states colored by average AQI,
 city-level markers with AQI labels and legend.
 
+### City-Wise AQI Prediction Maps
+`src/predict.py` trains a model per Indian city on an **80:20 temporal split**
+(SMOTE on training only) and forecasts the **next-day AQI**. The predictions are
+rendered by `src/visualization/map_cities.py`, with each city placed at a real
+coordinate resolved from the hardcoded lookup table
+`data/external/city_locations.csv` (e.g. `DEL` → Delhi, `BLR` → Bengaluru).
+
+- `output/india_city_predictions.html` — Indian states colored by predicted mean
+  AQI + city markers colored by predicted bucket (popup: city, AQI, bucket, dates).
+- `output/world_city_predictions.html` — world choropleth + predicted city markers.
+
+You can extend `data/external/city_locations.csv` with any station/city code row
+(`code,city,country,state,lat,lon`) and the map will resolve it automatically.
+
 | AQI Range | Color | Category |
 |-----------|-------|----------|
 | 0–50 | 🟩 Green | Good |
@@ -78,9 +92,11 @@ air-quality-hackathon/
 │   │   ├── india_city_day.csv
 │   │   ├── delhi_cpcb.csv
 │   │   └── openaq_stations.csv
-│   └── external/geojson/       ← map boundaries
-│       ├── india_states.geojson
-│       └── world_countries.geojson
+│   └── external/
+│       ├── geojson/            ← map boundaries
+│       │   ├── india_states.geojson
+│       │   └── world_countries.geojson
+│       └── city_locations.csv  ← hardcoded station/city → lat-lon table
 ├── src/
 │   ├── data/
 │   │   ├── preprocess.py       ← full preprocessing pipeline
@@ -94,8 +110,11 @@ air-quality-hackathon/
 │   │   └── convlstm_attention.py
 │   ├── train.py                ← training with SMOTE, CV, overfit correction
 │   ├── evaluate.py             ← test evaluation + plots
+│   ├── predict.py              ← per-city next-day AQI forecast
 │   └── visualization/
-│       └── map_global.py       ← world + India colored maps
+│       ├── map_global.py       ← world + India colored maps
+│       ├── map_cities.py       ← city-wise prediction maps
+│       └── location_table.py   ← hardcoded city → coordinate resolution
 ├── output/                     ← generated map HTML/PNG files
 ├── models/
 │   ├── checkpoints/            ← saved .pt model weights
@@ -134,6 +153,12 @@ python src/evaluate.py --checkpoint models/checkpoints/lstm_cnn.pt --dataset uci
 python src/visualization/map_global.py
 # → output/world_aqi_map.html  (world choropleth, countries colored by AQI)
 # → output/india_aqi_map.html  (India states colored by AQI)
+
+# 6. City-wise next-day AQI prediction + maps
+python src/predict.py --model lstm_cnn --epochs 30 --seq_len 7
+python src/visualization/map_cities.py
+# → output/india_city_predictions.html  (states + city markers by predicted AQI)
+# → output/world_city_predictions.html  (predicted city markers on world map)
 ```
 
 Full execution details are documented in **[docs/FETCH_AND_RUN.md](docs/FETCH_AND_RUN.md)**.

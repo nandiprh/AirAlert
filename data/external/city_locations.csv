@@ -1,0 +1,35 @@
+code,city,country,state,lat,lon
+DEL,Delhi,India,Delhi,28.6139,77.2090
+BLR,Bengaluru,India,Karnataka,12.9716,77.5946
+MUM,Mumbai,India,Maharashtra,19.0760,72.8777
+HYD,Hyderabad,India,Telangana,17.3850,78.4867
+CHE,Chennai,India,Tamil Nadu,13.0827,80.2707
+CCU,Kolkata,India,West Bengal,22.5726,88.3639
+AHM,Ahmedabad,India,Gujarat,23.0225,72.5714
+PNQ,Pune,India,Maharashtra,18.5204,73.8567
+JAI,Jaipur,India,Rajasthan,26.9124,75.7873
+LKN,Lucknow,India,Uttar Pradesh,26.8467,80.9462
+PAT,Patna,India,Bihar,25.5941,85.1376
+BHO,Bhopal,India,Madhya Pradesh,23.2599,77.4126
+ATQ,Amritsar,India,Punjab,31.6340,74.8723
+IXC,Chandigarh,India,Chandigarh,30.7333,76.7794
+COK,Kochi,India,Kerala,9.9312,76.2673
+TRV,Thiruvananthapuram,India,Kerala,8.5241,76.9366
+EKM,Ernakulam,India,Kerala,9.9694,76.2934
+CJB,Coimbatore,India,Tamil Nadu,11.0168,76.9558
+GAU,Guwahati,India,Assam,26.1445,91.7362
+IXZ,Aizawl,India,Mizoram,23.7271,92.7176
+SHL,Shillong,India,Meghalaya,25.5788,91.8933
+GUR,Gurugram,India,Haryana,28.4595,77.0266
+VSK,Visakhapatnam,India,Andhra Pradesh,17.6868,83.2185
+AMT,Amaravati,India,Andhra Pradesh,16.5083,80.5183
+BRJ,Brajrajnagar,India,Odisha,21.8167,83.9167
+TLR,Talcher,India,Odisha,20.9493,85.2236
+JRP,Jorapokhar,India,Jharkhand,23.7903,86.1110
+SYD,Sydney,Australia,New South Wales,-33.8688,151.2093
+MEL,Melbourne,Australia,Victoria,-37.8136,144.9631
+LON,London,United Kingdom,England,51.5074,-0.1278
+PAR,Paris,France,Ile-de-France,48.8566,2.3522
+NYC,New York,United States,New York,40.7128,-74.0060
+LAX,Los Angeles,United States,California,34.0522,-118.2437
+SFO,San Francisco,United States,California,37.7749,-122.4194
