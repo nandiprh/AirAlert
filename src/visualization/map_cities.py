@@ -119,6 +119,15 @@ def build_india_map(pred, states):
                 max_width=260),
             tooltip="%s → AQI %.0f" % (r["city"], r["predicted_aqi"]),
         ).add_to(m)
+        folium.Marker(
+            location=[r["lat"], r["lon"]],
+            icon=folium.DivIcon(
+html=('<div style="font-size:11px;font-weight:bold;color:#333;'
+              'text-shadow:-1px 0 #fff,1px 0 #fff,0 -1px #fff,0 1px #fff;'
+              'white-space:nowrap;transform:translate(-50%%,-140%%);">'
+              "%s</div>") % (r["city"]),
+                icon_size=None),
+        ).add_to(m)
 
     for i, label in enumerate(AQI_LABELS):
         folium.Marker(
@@ -186,14 +195,20 @@ def build_world_map(pred, world_geojson, path_html, path_png):
         colorscale=[[0, "#e8e8e8"], [1, "#e8e8e8"]], showscale=False,
         hoverinfo="skip", name="countries"))
     fig.add_trace(go.Scattergeo(
-        lon=pred["lon"], lat=pred["lat"], mode="markers", name="Predicted city AQI",
+        lon=pred["lon"], lat=pred["lat"], mode="markers",
+        name="Predicted city AQI",
         marker=dict(size=10 + pred["predicted_aqi"] * 0.35, color=colors,
                     line=dict(width=1, color="black")),
-        text=["%s<br>Predicted AQI: %.0f<br>%s<br>Forecast: %s"
-              % (c, a, b, d) for c, a, b, d in
-              zip(pred["city"], pred["predicted_aqi"], pred["bucket"],
-                  pred["forecast_date"])],
-        hovertemplate="%{text}<extra></extra>"))
+        text=pred["city"].tolist(),
+        textposition="top center",
+        textfont=dict(size=11, color="#111"),
+        customdata=pred[["predicted_aqi", "bucket", "forecast_date"]]
+                  .to_numpy(),
+        hovertemplate=(
+            "<b>%{text}</b><br>Predicted AQI: %{customdata[0]} "
+            "(%{customdata[1]})<br>Forecast date: %{customdata[2]}"
+            "<extra></extra>"),
+        showlegend=True))
     fig.update_geos(showframe=False, projection_type="natural earth",
                     coastlinecolor="#999", landcolor="#f2f2f2")
     fig.update_layout(height=600, margin=dict(l=0, r=0, t=30, b=0),
