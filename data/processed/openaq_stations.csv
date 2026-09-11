@@ -1,0 +1,108 @@
+row,location_id,lat,lon,first_file,index_right,country
+0,345145,38.76949,-121.04871,records/csv.gz/locationid=345145/year=2023/month=10/location-345145-20231003.csv.gz,4.0,United States of America
+1,1733177,38.30174,-122.42489,records/csv.gz/locationid=1733177/year=2024/month=03/location-1733177-20240310.csv.gz,4.0,United States of America
+2,228823,29.743322,-95.23209,records/csv.gz/locationid=228823/year=2022/month=05/location-228823-20220527.csv.gz,4.0,United States of America
+3,1289787,37.877457,-119.344376,records/csv.gz/locationid=1289787/year=2023/month=10/location-1289787-20231007.csv.gz,4.0,United States of America
+4,1579264,49.263348,-123.15746,records/csv.gz/locationid=1579264/year=2023/month=10/location-1579264-20231003.csv.gz,3.0,Canada
+5,1079966,47.866295,-121.815285,records/csv.gz/locationid=1079966/year=2023/month=10/location-1079966-20231003.csv.gz,4.0,United States of America
+6,66653,37.571526,-122.33356,records/csv.gz/locationid=66653/year=2023/month=10/location-66653-20231003.csv.gz,4.0,United States of America
+7,66608,38.908184,-121.06708,records/csv.gz/locationid=66608/year=2023/month=10/location-66608-20231003.csv.gz,4.0,United States of America
+8,1513892,47.44315,-122.33818,records/csv.gz/locationid=1513892/year=2023/month=10/location-1513892-20231003.csv.gz,4.0,United States of America
+9,63026,34.446327,-119.74282,records/csv.gz/locationid=63026/year=2023/month=10/location-63026-20231003.csv.gz,4.0,United States of America
+10,71706,37.841007,-122.21695,records/csv.gz/locationid=71706/year=2023/month=10/location-71706-20231003.csv.gz,4.0,United States of America
+11,67972,35.906796,-83.99019,records/csv.gz/locationid=67972/year=2023/month=10/location-67972-20231003.csv.gz,4.0,United States of America
+12,70507,38.615288,-122.43399,records/csv.gz/locationid=70507/year=2023/month=10/location-70507-20231003.csv.gz,4.0,United States of America
+13,1651967,35.0046,-76.839,records/csv.gz/locationid=1651967/year=2023/month=10/location-1651967-20231003.csv.gz,4.0,United States of America
+14,231483,40.71572,-111.87558,records/csv.gz/locationid=231483/year=2023/month=10/location-231483-20231003.csv.gz,4.0,United States of America
+15,70200,42.480385,-122.76749,records/csv.gz/locationid=70200/year=2023/month=10/location-70200-20231003.csv.gz,4.0,United States of America
+16,64046,39.141495,-120.16872,records/csv.gz/locationid=64046/year=2022/month=07/location-64046-20220725.csv.gz,4.0,United States of America
+17,1596242,47.956226,-124.38383,records/csv.gz/locationid=1596242/year=2023/month=10/location-1596242-20231003.csv.gz,4.0,United States of America
+18,236509,38.75298,-121.26108,records/csv.gz/locationid=236509/year=2022/month=05/location-236509-20220527.csv.gz,4.0,United States of America
+19,1599166,40.519592,-74.55149,records/csv.gz/locationid=1599166/year=2023/month=10/location-1599166-20231003.csv.gz,4.0,United States of America
+20,2623561,36.215998,127.043263,records/csv.gz/locationid=2623561/year=2024/month=03/location-2623561-20240320.csv.gz,96.0,South Korea
+21,1175656,41.844395,-72.03091,records/csv.gz/locationid=1175656/year=2023/month=10/location-1175656-20231003.csv.gz,4.0,United States of America
+22,357691,41.602856,-93.64325,records/csv.gz/locationid=357691/year=2023/month=10/location-357691-20231003.csv.gz,4.0,United States of America
+23,277668,-6.5851033,-6.5851033,records/csv.gz/locationid=277668/year=2022/month=01/location-277668-20220121.csv.gz,,
+24,64462,38.553883,-121.756516,records/csv.gz/locationid=64462/year=2023/month=10/location-64462-20231003.csv.gz,4.0,United States of America
+25,299821,42.263977,-71.79484,records/csv.gz/locationid=299821/year=2023/month=10/location-299821-20231003.csv.gz,4.0,United States of America
+26,66603,37.927727,-122.07801,records/csv.gz/locationid=66603/year=2023/month=10/location-66603-20231003.csv.gz,4.0,United States of America
+27,283534,39.96723,-105.15298,records/csv.gz/locationid=283534/year=2023/month=10/location-283534-20231003.csv.gz,4.0,United States of America
+28,268156,42.161526,-122.98528,records/csv.gz/locationid=268156/year=2023/month=10/location-268156-20231003.csv.gz,4.0,United States of America
+29,228545,37.285526,-121.97034,records/csv.gz/locationid=228545/year=2023/month=10/location-228545-20231003.csv.gz,4.0,United States of America
+30,226826,37.52253,-122.34957,records/csv.gz/locationid=226826/year=2023/month=10/location-226826-20231003.csv.gz,4.0,United States of America
+31,278469,35.8291635,35.8291635,records/csv.gz/locationid=278469/year=2022/month=02/location-278469-20220201.csv.gz,,
+32,820545,38.918243,-77.00252,records/csv.gz/locationid=820545/year=2023/month=10/location-820545-20231003.csv.gz,4.0,United States of America
+33,311119,44.941395,9.909199,records/csv.gz/locationid=311119/year=2023/month=10/location-311119-20231003.csv.gz,141.0,Italy
+34,65897,38.250175,-122.63608,records/csv.gz/locationid=65897/year=2023/month=10/location-65897-20231003.csv.gz,4.0,United States of America
+35,231973,39.72678,-104.99692,records/csv.gz/locationid=231973/year=2023/month=10/location-231973-20231003.csv.gz,4.0,United States of America
+36,65550,39.69231,-104.97902,records/csv.gz/locationid=65550/year=2022/month=05/location-65550-20220527.csv.gz,4.0,United States of America
+37,355937,47.659416,-117.425476,records/csv.gz/locationid=355937/year=2023/month=10/location-355937-20231003.csv.gz,4.0,United States of America
+38,444391,47.637875,-122.39143,records/csv.gz/locationid=444391/year=2023/month=10/location-444391-20231003.csv.gz,4.0,United States of America
+39,1284264,43.993717,-69.14087,records/csv.gz/locationid=1284264/year=2023/month=10/location-1284264-20231003.csv.gz,4.0,United States of America
+40,1473408,51.625484,-124.14308,records/csv.gz/locationid=1473408/year=2023/month=10/location-1473408-20231003.csv.gz,3.0,Canada
+41,1132734,-33.392162,149.08342,records/csv.gz/locationid=1132734/year=2023/month=10/location-1132734-20231003.csv.gz,137.0,Australia
+42,63522,37.83023,-122.23996,records/csv.gz/locationid=63522/year=2023/month=10/location-63522-20231003.csv.gz,4.0,United States of America
+43,1068864,35.72956,-79.17769,records/csv.gz/locationid=1068864/year=2023/month=10/location-1068864-20231003.csv.gz,4.0,United States of America
+44,2622731,36.814171,127.152144,records/csv.gz/locationid=2622731/year=2024/month=03/location-2622731-20240320.csv.gz,96.0,South Korea
+45,1215396,33.819722,132.728333,records/csv.gz/locationid=1215396/year=2023/month=07/location-1215396-20230728.csv.gz,155.0,Japan
+46,352150,34.1140624,-118.3800174,records/csv.gz/locationid=352150/year=2022/month=06/location-352150-20220620.csv.gz,4.0,United States of America
+47,161788,13.805936,100.55635,records/csv.gz/locationid=161788/year=2023/month=10/location-161788-20231003.csv.gz,91.0,Thailand
+48,276729,40.78386,-111.87021,records/csv.gz/locationid=276729/year=2023/month=10/location-276729-20231003.csv.gz,4.0,United States of America
+49,1463836,46.079063,-118.330475,records/csv.gz/locationid=1463836/year=2023/month=10/location-1463836-20231003.csv.gz,4.0,United States of America
+50,230883,45.81406,-120.34736,records/csv.gz/locationid=230883/year=2023/month=10/location-230883-20231003.csv.gz,4.0,United States of America
+51,236351,53.619835,-115.87102,records/csv.gz/locationid=236351/year=2023/month=10/location-236351-20231003.csv.gz,3.0,Canada
+52,353491,22.398406667,114.212578333,records/csv.gz/locationid=353491/year=2022/month=06/location-353491-20220630.csv.gz,139.0,China
+53,358215,39.428997,-122.184,records/csv.gz/locationid=358215/year=2023/month=10/location-358215-20231003.csv.gz,4.0,United States of America
+54,70485,37.95035,-122.52877,records/csv.gz/locationid=70485/year=2022/month=05/location-70485-20220527.csv.gz,4.0,United States of America
+55,1131686,39.585857,-105.16238,records/csv.gz/locationid=1131686/year=2023/month=10/location-1131686-20231003.csv.gz,4.0,United States of America
+56,72958,38.08507,-122.239426,records/csv.gz/locationid=72958/year=2023/month=10/location-72958-20231003.csv.gz,4.0,United States of America
+57,766231,42.758892,-73.70317,records/csv.gz/locationid=766231/year=2023/month=10/location-766231-20231003.csv.gz,4.0,United States of America
+58,222967,11.0338906,11.0338906,records/csv.gz/locationid=222967/year=2021/month=03/location-222967-20210322.csv.gz,56.0,Nigeria
+59,235102,40.73118,-122.94369,records/csv.gz/locationid=235102/year=2023/month=10/location-235102-20231003.csv.gz,4.0,United States of America
+60,73184,45.311028,-122.7887,records/csv.gz/locationid=73184/year=2023/month=10/location-73184-20231003.csv.gz,4.0,United States of America
+61,68451,37.04941,-122.02668,records/csv.gz/locationid=68451/year=2022/month=05/location-68451-20220527.csv.gz,4.0,United States of America
+62,66934,49.48426,-124.266624,records/csv.gz/locationid=66934/year=2023/month=10/location-66934-20231003.csv.gz,,
+63,588267,37.65253,-121.03012,records/csv.gz/locationid=588267/year=2024/month=03/location-588267-20240310.csv.gz,4.0,United States of America
+64,234967,37.436874,-122.22183,records/csv.gz/locationid=234967/year=2023/month=10/location-234967-20231003.csv.gz,4.0,United States of America
+65,62348,37.913284,-122.52147,records/csv.gz/locationid=62348/year=2023/month=10/location-62348-20231003.csv.gz,4.0,United States of America
+66,314012,44.44206,26.08317,records/csv.gz/locationid=314012/year=2023/month=10/location-314012-20231003.csv.gz,117.0,Romania
+67,947342,33.78828138,-118.3138774,records/csv.gz/locationid=947342/year=2023/month=05/location-947342-20230523.csv.gz,4.0,United States of America
+68,357399,39.817806,-105.19039,records/csv.gz/locationid=357399/year=2023/month=10/location-357399-20231003.csv.gz,4.0,United States of America
+69,525532,46.672695,113.28328,records/csv.gz/locationid=525532/year=2023/month=10/location-525532-20231003.csv.gz,97.0,Mongolia
+70,66399,40.608395,-82.55692,records/csv.gz/locationid=66399/year=2023/month=10/location-66399-20231003.csv.gz,4.0,United States of America
+71,70353,34.020527,-118.36168,records/csv.gz/locationid=70353/year=2022/month=05/location-70353-20220527.csv.gz,4.0,United States of America
+72,26122,40.511498,-80.104321,records/csv.gz/locationid=26122/year=2019/month=03/location-26122-20190301.csv.gz,4.0,United States of America
+73,70279,62.45208,-114.36403,records/csv.gz/locationid=70279/year=2023/month=10/location-70279-20231003.csv.gz,3.0,Canada
+74,69180,37.356884,-122.33088,records/csv.gz/locationid=69180/year=2022/month=05/location-69180-20220527.csv.gz,4.0,United States of America
+75,68459,-25.775963,28.210732,records/csv.gz/locationid=68459/year=2022/month=07/location-68459-20220731.csv.gz,25.0,South Africa
+76,228125,20.870625,20.870625,records/csv.gz/locationid=228125/year=2021/month=06/location-228125-20210616.csv.gz,15.0,Chad
+77,354745,45.52268,-122.84416,records/csv.gz/locationid=354745/year=2023/month=10/location-354745-20231003.csv.gz,4.0,United States of America
+78,63351,36.56183,-121.90849,records/csv.gz/locationid=63351/year=2023/month=10/location-63351-20231003.csv.gz,4.0,United States of America
+79,351941,-42.459393,171.20721,records/csv.gz/locationid=351941/year=2023/month=10/location-351941-20231007.csv.gz,136.0,New Zealand
+80,350565,45.184868,9.157602,records/csv.gz/locationid=350565/year=2023/month=10/location-350565-20231003.csv.gz,141.0,Italy
+81,269433,3.0410037,3.0410037,records/csv.gz/locationid=269433/year=2021/month=10/location-269433-20211007.csv.gz,,
+82,1104732,40.43429,-79.914474,records/csv.gz/locationid=1104732/year=2023/month=10/location-1104732-20231003.csv.gz,4.0,United States of America
+83,66727,37.9792,-122.5761,records/csv.gz/locationid=66727/year=2023/month=10/location-66727-20231003.csv.gz,4.0,United States of America
+84,1289816,40.85106,-73.83475,records/csv.gz/locationid=1289816/year=2023/month=10/location-1289816-20231003.csv.gz,4.0,United States of America
+85,706001,38.47739,-121.497086,records/csv.gz/locationid=706001/year=2023/month=10/location-706001-20231003.csv.gz,4.0,United States of America
+86,352063,33.76601586,-118.3155921,records/csv.gz/locationid=352063/year=2022/month=06/location-352063-20220620.csv.gz,4.0,United States of America
+87,71356,32.91892,-96.888405,records/csv.gz/locationid=71356/year=2023/month=10/location-71356-20231003.csv.gz,4.0,United States of America
+88,1878656,38.654507,-90.34753,records/csv.gz/locationid=1878656/year=2024/month=03/location-1878656-20240310.csv.gz,4.0,United States of America
+89,354683,22.38113,114.2740117,records/csv.gz/locationid=354683/year=2022/month=07/location-354683-20220717.csv.gz,139.0,China
+90,70245,39.130962,-120.154655,records/csv.gz/locationid=70245/year=2023/month=10/location-70245-20231003.csv.gz,4.0,United States of America
+91,73237,40.421337,-79.92346,records/csv.gz/locationid=73237/year=2023/month=10/location-73237-20231003.csv.gz,4.0,United States of America
+92,72326,39.295452,-104.822,records/csv.gz/locationid=72326/year=2023/month=10/location-72326-20231003.csv.gz,4.0,United States of America
+93,232304,41.259663,-123.33122,records/csv.gz/locationid=232304/year=2023/month=10/location-232304-20231003.csv.gz,4.0,United States of America
+94,232742,37.52125,-120.304474,records/csv.gz/locationid=232742/year=2023/month=10/location-232742-20231003.csv.gz,4.0,United States of America
+95,223091,3.1607845,3.1607845,records/csv.gz/locationid=223091/year=2021/month=03/location-223091-20210324.csv.gz,,
+96,399206,49.587254,-113.47292,records/csv.gz/locationid=399206/year=2023/month=10/location-399206-20231003.csv.gz,3.0,Canada
+97,1067470,52.233334,-78.5,records/csv.gz/locationid=1067470/year=2023/month=10/location-1067470-20231003.csv.gz,3.0,Canada
+98,2130594,37.768764,-122.42273,records/csv.gz/locationid=2130594/year=2024/month=03/location-2130594-20240310.csv.gz,4.0,United States of America
+99,67973,37.863605,-122.2619,records/csv.gz/locationid=67973/year=2023/month=10/location-67973-20231003.csv.gz,4.0,United States of America
+100,357593,37.60474,-120.96084,records/csv.gz/locationid=357593/year=2024/month=03/location-357593-20240310.csv.gz,4.0,United States of America
+101,330227,15.3313442,15.3313442,records/csv.gz/locationid=330227/year=2022/month=05/location-330227-20220504.csv.gz,15.0,Chad
+102,227226,33.94999,-117.696945,records/csv.gz/locationid=227226/year=2023/month=10/location-227226-20231003.csv.gz,4.0,United States of America
+103,42503,-2.6114311,-2.6114311,records/csv.gz/locationid=42503/year=2020/month=12/location-42503-20201229.csv.gz,,
+104,269668,38.564327,-121.45543,records/csv.gz/locationid=269668/year=2023/month=10/location-269668-20231003.csv.gz,4.0,United States of America
+105,2736744,31.67248789,34.55190288,records/csv.gz/locationid=2736744/year=2024/month=04/location-2736744-20240410.csv.gz,76.0,Israel
+106,65473,38.115738,-122.261444,records/csv.gz/locationid=65473/year=2023/month=10/location-65473-20231003.csv.gz,4.0,United States of America
