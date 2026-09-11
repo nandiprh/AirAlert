@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ipynb_checkpoints/
+
+# Data (regenerate via docs/DATA_SOURCES.md)
+data/raw/
+data/processed/
+data/external/
+
+# Model artifacts
+models/checkpoints/
+models/reports/
+
+# Output maps / plots
+output/
+
+# OS / editor
+.DS_Store
+*.swp

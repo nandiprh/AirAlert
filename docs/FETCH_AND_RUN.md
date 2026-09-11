@@ -1,0 +1,251 @@
+# Fetch and Run — Step-by-Step Guide
+
+This document records every command used to fetch data, install dependencies, and
+execute programs in this project.
+
+---
+
+## 1. Environment Setup
+
+```bash
+# Python 3.14.6 is pre-installed on the system.
+
+# Create a virtual environment (PEP 668 externally-managed system)
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Upgrade pip and install all dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Key packages (CPU-only PyTorch):
+- `torch==2.14.0+cpu` — all 5 hybrid DL models
+- `pandas`, `numpy`, `scipy`, `scikit-learn`, `imbalanced-learn` — data/ML
+- `matplotlib`, `plotly`, `folium` — static + interactive maps
+- `geopandas`, `shapely`, `pyproj` — geospatial point-in-polygon
+
+---
+
+## 2. Data Fetching
+
+All fetch commands were recorded here in the order they were executed.
+
+### 2.1 UCI Air Quality Dataset (Vigo, Italy)
+
+Source: https://archive.ics.uci.edu/dataset/360/Air+Quality
+
+```bash
+curl -sL -o data/raw/airquality_uci.zip \
+  "https://archive.ics.uci.edu/static/public/360/air+quality.zip"
+unzip -o data/raw/airquality_uci.zip -d data/raw
+mv data/raw/AirQualityUCI.csv data/raw/airquality_uci.csv
+```
+
+Result: `data/raw/airquality_uci.csv` (785 KB, 9,358 hourly rows, 15 features)
+
+### 2.2 India city-level daily AQI (CPCB via Kaggle mirror)
+
+Source: https://github.com/adityarc19/aqi-india (Kaggle CC0 dataset mirrored)
+
+```bash
+curl -sL -o data/raw/india_city_day.csv \
+  "https://raw.githubusercontent.com/adityarc19/aqi-india/master/city_day.csv"
+```
+
+Result: `data/raw/india_city_day.csv` (2.57 MB, 29,531 daily rows, 26 Indian cities)
+
+### 2.3 Delhi CPCB station hourly data (opencity.in)
+
+Source: https://data.opencity.in (CPCB raw feed mirror)
+
+```bash
+curl -sL -o data/raw/delhi_cpcb_2024_25.csv \
+  "https://data.opencity.in/dataset/0dc7b9fe-9fd4-46ee-a37e-88f0bd6f6362/\
+resource/890f786d-fb9f-475e-8516-191bfa1b01ea/download/del-ito-cpcb-2024-25.csv"
+```
+
+Result: `data/raw/delhi_cpcb_2024_25.csv` (9.4 MB, ~68,984 hourly rows, 29 columns incl. weather)
+
+### 2.4 OpenAQ worldwide station discovery (S3 archive scan)
+
+Source: https://openaq-data-archive.s3.amazonaws.com/ (Open Data on AWS, no key required)
+
+```bash
+# Step A: enumerate all location_id prefixes in the archive (S3 list-type=2, paginated)
+# This produced /tmp/opencode/locids.txt with 55,551 unique location ids.
+
+# Step B: geographic scan script (parallel, gzip-aware)
+python scripts/openaq_scan.py \
+  --ids /tmp/opencode/locids.txt \
+  --sample 2500 \
+  --out data/raw/openaq/location_scan.csv
+
+# Step C (second, larger scan): 15,000 more location ids -> /tmp/opencode/scan_run2.csv
+#   [scan] Wrote 15000 valid rows (14999 with geo)
+
+# Step D: merge scans, assign countries (point-in-polygon), pick up to 3 stations
+# per country for balanced worldwide coverage
+python scripts/openaq_select.py \
+  --scans data/raw/openaq/location_scan_clean.csv /tmp/opencode/scan_run2.csv \
+  --world data/external/geojson/world_countries.geojson \
+  --max-per-country 3 \
+  --out data/raw/openaq/location_scan_clean.csv
+#   -> 282 stations across 110 countries
+
+# Step E: pre-fetch one daily measurement file per selected station to local disk
+python scripts/openaq_fetch.py \
+  --stations data/raw/openaq/location_scan_clean.csv \
+  --outdir data/raw/openaq/measurements --max-workers 16
+#   -> 282/282 files downloaded into data/raw/openaq/measurements/
+```
+
+Result: **282 stations in 110 countries**, each with a local daily measurement file
+(PM2.5 / PM10 / NO2 / O3 / SO2 values + coordinates) used directly by the world map.
+
+### 2.5 Indian state boundaries (GeoJSON)
+
+Source: https://github.com/udit-001/india-maps-data via jsDelivr CDN
+
+```bash
+curl -sL -o data/external/geojson/india_states.geojson \
+  "https://cdn.jsdelivr.net/gh/udit-001/india-maps-data@2884453/geojson/india.geojson"
+```
+
+### 2.6 Indian cities coordinates
+
+Source: https://github.com/recurze/IndianCities
+
+```bash
+curl -sL -o data/raw/india_cities.csv \
+  "https://raw.githubusercontent.com/recurze/IndianCities/master/final_cities.csv"
+```
+
+### 2.7 World country boundaries (Natural Earth)
+
+Source: https://github.com/nvkelso/natural-earth-vector
+
+```bash
+curl -sL -o data/external/geojson/world_countries.geojson \
+  "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson"
+```
+
+---
+
+## 3. Data Preprocessing
+
+```bash
+source .venv/bin/activate
+
+# Run the full preprocessing pipeline (UCI + India city_day + Delhi CPCB + OpenAQ)
+python -m src.data.preprocess
+
+# Assign countries to worldwide OpenAQ stations (point-in-polygon)
+python -m src.data.openaq_loader
+```
+
+Outputs in `data/processed/`:
+- `uci.csv` (9,357 rows — cleaned UCI hourly data)
+- `india_city_day.csv` (29,531 rows — imputed, AQI_Bucket recomputed)
+- `delhi_cpcb.csv` (68,984 rows — parsed timestamps, station-imputed)
+- `openaq_stations.csv` (107 rows — worldwide stations with country ISO codes)
+
+---
+
+## 4. Training Models
+
+All five hybrid architectures are in `src/models/`. Training script: `src/train.py`.
+
+```bash
+source .venv/bin/activate
+
+# Train LSTM+CNN on UCI hourly data (regression + classification)
+python src/train.py --dataset uci --model lstm_cnn --epochs 50 --seq_len 24
+
+# Train CNN+BiLSTM on India city AQI data
+python src/train.py --dataset india --model cnn_bilstm --epochs 50 --seq_len 7
+
+# Train all five models on UCI (10-fold CV)
+python src/train.py --dataset uci --model all --cv10 --epochs 30 --seq_len 24
+
+# Specific model options:
+#   lstm_cnn | cnn_bilstm | lstm_attention | transformer_lstm | convlstm_attention
+```
+
+Hyperparameters (CLI args):
+- `--dataset`: `uci` or `india`
+- `--model`: `lstm_cnn`, `cnn_bilstm`, `lstm_attention`, `transformer_lstm`, `convlstm_attention`, `all`
+- `--epochs`, `--batch_size`, `--lr`, `--seq_len`, `--hidden_size`, `--dropout`
+- `--cv10`: enable 10-fold cross-validation
+- `--smote`: enable SMOTE balancing (on training split only)
+
+Checkpoints saved to: `models/checkpoints/`
+Metrics saved to: `models/reports/<model_name>_metrics.json`
+Training history plots: `models/reports/<model_name>_history.png`
+
+---
+
+## 5. Evaluation
+
+```bash
+# Evaluate a trained checkpoint
+python src/evaluate.py --checkpoint models/checkpoints/<model_name>.pt --dataset uci
+
+# Outputs:
+#   - Confusion matrix plot: models/reports/<model_name>_confusion.png
+#   - Actual vs predicted plot: models/reports/<model_name>_actual_vs_pred.png
+#   - Metrics printed to stdout
+```
+
+---
+
+## 6. Generating Colored Maps (Visualization)
+
+```bash
+source .venv/bin/activate
+
+python src/visualization/map_global.py
+```
+
+Outputs in `output/`:
+- `world_aqi_map.html` — interactive Plotly choropleth (countries colored by mean PM2.5/AQI)
+- `world_aqi_map.png` — static matplotlib fallback of the same
+- `india_aqi_map.html` — interactive Folium map (Indian states colored by average AQI)
+- `india_aqi_map.png` — static matplotlib fallback
+
+Color scale (both maps):
+| Color  | AQI Range | Meaning                          |
+|--------|-----------|----------------------------------|
+| Green  | 0–50      | Good                             |
+| Yellow | 51–100    | Moderate                         |
+| Orange | 101–150   | Unhealthy for Sensitive Groups   |
+| Red    | 151–200   | Poor                             |
+| Dark Red | 201+     | Very Poor / Severe              |
+
+---
+
+## 7. Pipeline Overview
+
+```
+data/raw/                     ← raw downloaded files
+  └── data/processed/         ← cleaned CSVs (datetime-indexed)
+        ├── uci.csv
+        ├── india_city_day.csv
+        ├── delhi_cpcb.csv
+        └── openaq_stations.csv
+
+src/data/preprocess.py        ← loads + cleans all CSVs
+src/data/openaq_loader.py     ← OpenAQ station enrichment + country assignment
+src/models/*.py               ← 5 hybrid DL architectures (PyTorch)
+src/train.py                  ← train loop with SMOTE, CV, overfit detection
+src/evaluate.py               ← test evaluation + plots
+src/visualization/map_global.py ← colored world + India maps
+
+output/                       ← map HTML + PNG files
+models/checkpoints/           ← saved .pt model files
+models/reports/               ← metrics JSON + evaluation plots
+```
+
+---
+
+_Last updated: data fetching and execution complete, maps confirmed rendering._
