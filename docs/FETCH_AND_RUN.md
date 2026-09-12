@@ -253,6 +253,16 @@ python src/predict.py --model lstm_cnn --epochs 30 --seq_len 7
 python src/visualization/map_cities.py
 ```
 
+Bucket labels come from `src/visualization/aqi_spec.py` (CPCB-style: **0–50 Good,
+51–100 Satisfactory, 101–200 Moderate, 201–300 Poor, 301–400 Very Poor, 401+ Severe**):
+`predict.py` writes those labels into the CSV/summary, and every map colours by them.
+
+> Note: earlier builds mapped 101–150 → Moderate etc. (surface-level values shifted
+> one band down, so most cities looked "very poor" in the summary). Values were
+> always moderate (mean ≈ 90), but the **labels were centred one band too low** and
+> the maps had no legend. `aqi_spec.py` fixes the bands and both maps now include a
+> **"What each color means"** legend with the AQI range + health advice.
+
 Data written:
 - `data/processed/predictions/city_predictions.csv` — city, state, lat, lon,
   forecast_date, predicted_aqi, bucket
@@ -262,9 +272,27 @@ Maps in `output/`:
 - `india_city_predictions.html` / `.png` — states colored by predicted mean AQI +
   city markers colored by predicted bucket (hover shows city, AQI, bucket, dates)
 - `world_city_predictions.html` / `.png` — world choropleth + predicted city markers
+  **plus the curated global cities** (Sydney, London, Paris, New York, LA, SF, …)
+  coloured by nearest OpenAQ station / country-mean AQI. Both maps show a
+  color → AQI-range → health legend.
 
 Cities with insufficient valid history (e.g. Ahmedabad, Ernakulam, Jorapokhar,
 Lucknow drop almost all rows during NaN cleaning) are skipped with a log message.
+
+### Station number → name lookup (world map hover)
+
+`world_aqi_map.html` shows OpenAQ stations by **name** instead of a raw location id.
+`data/external/station_city_lookup.csv` maps `location_id → display_name`, built by
+`src/visualization/location_table.py`:
+
+```bash
+# Regenerate after re-scanning stations or adding a curated city coordinates
+python -m src.visualization.location_table data/raw/openaq/location_scan_clean.csv
+```
+
+`display_name` resolves to: the nearest curated city within 150 km
+("City (~X km)"), else the station `location` name from the cached measurement file,
+else "Station {id}".
 
 ---
 
@@ -287,6 +315,7 @@ src/predict.py                ← per-city next-day AQI forecast
 src/visualization/map_global.py ← colored world + India maps
 src/visualization/map_cities.py ← city-wise prediction maps
 src/visualization/location_table.py ← hardcoded city → coordinate resolution
+src/visualization/aqi_spec.py ← shared AQI buckets/colors + health legend
 
 output/                       ← map HTML + PNG files
 models/checkpoints/           ← saved .pt model files

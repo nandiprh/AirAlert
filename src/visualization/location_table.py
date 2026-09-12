@@ -11,6 +11,7 @@ hardcoded dict ``FALLBACK_CITY_COORDS`` and finally to the nationwide
 ``india_cities.csv`` population table (exact match only).
 """
 
+import math
 import os
 
 import pandas as pd
@@ -19,6 +20,10 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))
 LOCATION_TABLE_CSV = os.path.join(PROJECT_ROOT, "data", "external",
                                   "city_locations.csv")
+STATION_LOOKUP_CSV = os.path.join(PROJECT_ROOT, "data", "external",
+                                  "station_city_lookup.csv")
+OPENAQ_MEASUREMENTS_DIR = os.path.join(PROJECT_ROOT, "data", "raw",
+                                       "openaq", "measurements")
 INDIA_CITIES_CSV = os.path.join(PROJECT_ROOT, "data", "raw",
                                 "india_cities.csv")
 
@@ -81,3 +86,117 @@ def resolve_many(cities, location_table=None):
     """{city: (lat, lon, state, country)} for a list of cities."""
     table = load_location_table() if location_table is None else location_table
     return {c: resolve(c, table) for c in cities}
+
+
+# ---------------------------------------------------------------------------
+# Station lookups (location_id -> display name / nearest city)
+# ---------------------------------------------------------------------------
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    """Great-circle distance in km between two lat/lon points."""
+    lat1, lon1, lat2, lon2 = map(math.radians, (lat1, lon1, lat2, lon2))
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    return 6371.0 * 2 * math.asin(math.sqrt(a))
+
+
+def station_name_from_cache(location_id):
+    """Station display name read from a prefetched measurement file."""
+    from gzip import open as gzopen
+    path = os.path.join(OPENAQ_MEASUREMENTS_DIR, f"location-{location_id}.csv.gz")
+    if not os.path.isfile(path):
+        return None
+    try:
+        with gzopen(path, "rt", errors="ignore") as fh:
+            header = fh.readline().strip().split(",")
+            if "location" not in header:
+                return None
+            name_col = header.index("location")
+            for line in fh:
+                fields = line.rstrip("\n").split(",")
+                if len(fields) > name_col and fields[name_col].strip():
+                    return fields[name_col].strip()
+    except Exception:
+        return None
+    return None
+
+
+def nearest_city(lat, lon, location_table=None, threshold_km=150):
+    """(city, country, distance_km) of the nearest curated city, else None."""
+    table = load_location_table() if location_table is None else location_table
+    best = None
+    for entry in table.values():
+        dist = _haversine_km(lat, lon, entry["lat"], entry["lon"])
+        if dist <= threshold_km and (best is None or dist < best[0]):
+            best = (dist, entry["city"], entry["country"])
+    if best is None:
+        return None
+    return best[1], best[2], round(best[0], 1)
+
+
+def build_station_city_lookup(stations, location_table=None, threshold_km=150):
+    """Map every station to a human-readable display name.
+
+    Lookup priority for each ``location_id``:
+      1. nearest curated city (``data/external/city_locations.csv``) within
+         ``threshold_km`` -> "\"City (~X km)\""
+      2. the station's own ``location`` name from a local measurement file
+      3. "\"Station <id>\""
+
+    ``stations`` needs columns ``location_id``, ``lat``, ``lon``.
+    """
+    table = load_location_table() if location_table is None else location_table
+    rows = []
+    for _, r in stations.iterrows():
+        loc_id = int(r["location_id"])
+        lat, lon = float(r["lat"]), float(r["lon"])
+        city, country, dist = (nearest_city(lat, lon, table, threshold_km)
+                               or (None, None, None))
+        st_name = station_name_from_cache(loc_id)
+        if city is not None:
+            display = f"{city} (~{dist:g} km)"
+        elif st_name:
+            display = st_name
+        else:
+            display = f"Station {loc_id}"
+        rows.append({
+            "location_id": loc_id,
+            "city": city or "",
+            "country": country or "",
+            "distance_km": dist if dist is not None else "",
+            "station_name": st_name or "",
+            "display_name": display,
+        })
+    return pd.DataFrame(rows)
+
+
+def save_station_city_lookup(stations, out_path=None):
+    """Build the location_id -> display-name table and write it to CSV."""
+    df = build_station_city_lookup(stations)
+    out = out_path or STATION_LOOKUP_CSV
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    df.to_csv(out, index=False)
+    matched = int((df["city"] != "").sum())
+    print(f"[location_table] saved {len(df)} station lookups -> {out} "
+          f"({matched} matched a curated city)")
+    return out
+
+
+def load_station_city_lookup(path=None):
+    """{location_id: display_name} from the generated CSV (empty if absent)."""
+    path = path or STATION_LOOKUP_CSV
+    out = {}
+    if os.path.isfile(path):
+        df = pd.read_csv(path)
+        for _, r in df.iterrows():
+            out[int(r["location_id"])] = str(r["display_name"])
+    return out
+
+
+if __name__ == "__main__":
+    import sys
+    stations_csv = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
+        PROJECT_ROOT, "data", "raw", "openaq", "location_scan_clean.csv")
+    stations = pd.read_csv(stations_csv)
+    save_station_city_lookup(stations)

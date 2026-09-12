@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.models import MODEL_REGISTRY, deterministic_seed  # noqa: E402
 from src.models.base import apply_normalizer  # noqa: E402
+from src.visualization.aqi_spec import aqi_bucket_name  # noqa: E402
 from src.train import (  # noqa: E402
     Config,
     INDIA_FEATURES,
@@ -47,18 +48,10 @@ except ImportError:  # pragma: no cover
 PRED_DIR = os.path.join(PROCESSED_DIR, "predictions")
 REPORT_JSON = os.path.join(REPORT_DIR, "city_predictions_summary.json")
 
-# CPCB AQI bucket ranges (min AQI: label)
-CPCB_BUCKETS = [
-    (0, "Good"), (51, "Moderate"), (101, "Satisfactory"),
-    (151, "Poor"), (201, "Very Poor"), (301, "Severe"),
-]
-
-
 def bucket_of(aqi):
-    for lo, label in CPCB_BUCKETS:
-        if float(aqi) < lo:
-            return label
-    return "Severe"
+    """CPCB AQI bucket name: 0-50 Good, 51-100 Satisfactory, 101-200 Moderate,
+    201-300 Poor, 301-400 Very Poor, 401+ Severe (matches the map legend)."""
+    return aqi_bucket_name(aqi)
 
 
 def list_cities():

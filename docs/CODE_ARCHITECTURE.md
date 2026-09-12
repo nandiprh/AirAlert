@@ -41,6 +41,8 @@ six stages:
   │   map_global.py            (plotly/folium HTML + PNG)    │
   │   map_cities.py                                          │
   │   location_table.py        hardcoded city → coordinates  │
+  │   aqi_spec.py              shared AQI bucket scale +     │
+  │                            color → health legend         │
   └───────────────────────────────────────────────────────────┘
 ```
 
@@ -83,7 +85,8 @@ air-quality-hackathon/
 │   │       └── city_predictions.csv   #   per-city next-day AQI
 │   └── external/                      # curated, versioned
 │       ├── geojson/                   #   india_states, world_countries
-│       └── city_locations.csv         #   hardcoded code→lat/lon table
+│       ├── city_locations.csv         #   hardcoded code→lat/lon table
+│       └── station_city_lookup.csv    #   location-id → station/city name
 │
 ├── src/
 │   ├── __init__.py
@@ -104,7 +107,8 @@ air-quality-hackathon/
 │   └── visualization/
 │       ├── map_global.py              # world + India choropleths
 │       ├── map_cities.py              # city-wise prediction maps
-│       └── location_table.py          # hardcoded coordinate resolution
+│       ├── location_table.py          # hardcoded coordinate resolution
+│       └── aqi_spec.py                # AQI bands/colors + health legend
 │
 ├── scripts/                           # one-off data-fetch utilities
 │   ├── openaq_scan.py                 # discover stations from S3 archive
@@ -369,7 +373,7 @@ Trains one model **per Indian city** and predicts the next-day AQI.
   2. `run_training` (SMOTE on train only, overfit/underfit auto-correction)
   3. scale the final window with the training `feature_scaler`
   4. `model(window)` → inverse-scale `reg_scaler` → predicted AQI
-  5. map to CPCB bucket (`bucket_of`)
+  5. map to CPCB bucket (`bucket_of` → `aqi_bucket_name` from `aqi_spec.py`)
 - `forecast_city` — optional ensemble averaging when `--model all`.
 - `main` — resolves coordinates through `location_table.resolve_many()`,
   writes `data/processed/predictions/city_predictions.csv` and a summary JSON.
@@ -386,6 +390,26 @@ python src/predict.py --city Delhi --model all
 
 ## 8. Visualization (`src/visualization/`)
 
+### `aqi_spec.py` — single source of truth for AQI color/buckets
+
+Every map and `predict.py` import their bucket scale from here, so the CSV
+labels, the folium legend and the plotly legend can never drift apart:
+
+- `AQI_BUCKETS = [(0,50),(50,100),(100,200),(200,300),(300,∞)]` mapped to
+  `GREEN/YELLOW/ORANGE/RED/DARKRED` with CPCB-style labels **Good, Satisfactory,
+  Moderate, Poor, Very Poor/Severe**.
+- `aqi_bucket_name(aqi)` returns the label (0–50 Good, 51–100 Satisfactory,
+  101–200 Moderate, 201–300 Poor, 301–400 Very Poor, 401+ Severe).
+- `legend_rows(include_health)` / `html_legend(...)` render the "What each color
+  means" overlay for folium, containing the AQI range + health guidance
+  (e.g. Good → "little or no risk", Very Poor → "health alert: respiratory
+  illness on prolonged exposure").
+
+A known bug this replaced: `predict.py` used the wrong bands
+`(0,51,101,151,201,301)` (a 101–150 "US Moderate" remnant), so ~all values were
+labelled two bands too low — every city looked "Very Poor" even though values
+were moderate. Keeping one spec fixes the CSV and all maps at once.
+
 ### `map_global.py` — worldwide mosaic + India state map
 
 Constants: the AQI bucket grid `AQI_BUCKETS`/`AQI_COLORS`, the EPA
@@ -399,11 +423,11 @@ PM2.5→AQI breakpoints, GeoJSON paths and the OpenAQ S3 base URL.
 | `fetch_station_pm25` | Local first (prefetched dir) then S3, else `station_placeholder_pm25` (seeded random). |
 | `load_station_data` | Build the 282-station table, assigning each a representative pollutant. |
 | `assign_countries` / `build_country_aggregation` | Point-in-polygon country assignment + per-country mean AQI. |
-| `save_world_plotly` | **Plotly choropleth** — countries colored by mean AQI, station dots with tooltips → `world_aqi_map.html`. |
+| `save_world_plotly` | **Plotly choropleth** — countries colored by mean AQI, station dots whose **hover shows the station/city name** via `display_name` → `world_aqi_map.html`. |
 | `save_world_png_writer` / `..._matplotlib` | Static PNG export (kaleido, else matplotlib fallback). |
-| `build_india_city_state` / `state_standings` / `save_india_folium` | **Folium** India map — states filled by avg AQI, city markers → `india_aqi_map.html`. |
+| `build_india_city_state` / `state_standings` / `save_india_folium` | **Folium** India map — states filled by avg AQI, city markers + an HTML **color → AQI range → health** legend → `india_aqi_map.html`. |
 
-### `location_table.py` — hardcoded city resolution
+### `location_table.py` — hardcoded city resolution + station lookup
 
 Motivation: fuzzy-matching city names against the national `india_cities.csv`
 produced wrong results (e.g. "Visakhapatnam" → Bihar). Instead, city
@@ -422,6 +446,17 @@ BLR,Bengaluru,India,Karnataka,12.9716,77.5946
   exact-name match in `india_cities.csv` → `(None, ...)`.
 - `resolve_many(cities)` → dict for a whole batch.
 
+Second role: **location-number → human-readable name**. OpenAQ station ids
+(e.g. `location 1038477`) are opaque, so `build_station_city_lookup()` writes
+`data/external/station_city_lookup.csv` with `display_name` per station:
+
+1. nearest curated city within 150 km → "City (~X km)";
+2. else the station `location` name from the cached measurement gzip
+   (`location-{id}.csv.gz`, e.g. "Badhoevedorp-Sloterweg-100");
+3. else "Station {id}".
+
+Rebuild with `python -m src.visualization.location_table <location_scan_clean.csv>`.
+
 To add a new station/city, append one row — no code changes needed.
 
 ### `map_cities.py` — city-wise prediction maps
@@ -431,10 +466,15 @@ location table (authoritative), and emits four files:
 
 | Output | Renderer | Content |
 |--------|----------|---------|
-| `india_city_predictions.html` | folium | States colored by **predicted** mean AQI + colored city markers + permanent name labels + legend |
-| `india_city_predictions.png` | matplotlib | Choropleth + annotated markers |
-| `world_city_predictions.html` | plotly | World choropleth + city markers with hover (name/AQI/bucket/date) |
+| `india_city_predictions.html` | folium | States colored by **predicted** mean AQI + colored city markers + permanent name labels + **color → AQI-range → health** legend |
+| `india_city_predictions.png` | matplotlib | Choropleth + annotated markers (legend shows AQI ranges) |
+| `world_city_predictions.html` | plotly | World choropleth + city markers with hover (name/AQI/bucket/date) **+ a legend trace per AQI bucket** + curated **global cities** (SYD, LON, PAR, NYC, LAX, SFO, …) as diamonds |
 | `world_city_predictions.png` | kaleido | Static version of the same |
+
+Global-city AQI: nearest OpenAQ station within 300 km, else the country-mean AQI
+(ISO3-matched against `world_countries.geojson`, tolerating name variants like
+"United States" vs "United States of America"); the hover states which source was
+used.
 
 Tiles come from **CartoDB positron** (the default OpenStreetMap tiles return
 HTTP 403 and blank the page).

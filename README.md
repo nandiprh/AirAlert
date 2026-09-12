@@ -42,11 +42,13 @@ Run `python src/visualization/map_global.py` to generate:
 
 ### World Map
 `output/world_aqi_map.html` — interactive Plotly choropleth, countries colored by mean PM2.5
-(red–yellow–green AQI scale), OpenAQ station markers with tooltips.
+(red–yellow–green AQI scale), OpenAQ station markers whose hover shows the **station/city
+name** (location-number → name lookup in `data/external/station_city_lookup.csv`).
 
 ### India Map
 `output/india_aqi_map.html` — Folium map, Indian states colored by average AQI,
-city-level markers with AQI labels and legend.
+city-level markers with AQI labels, and a **color → health** legend
+("Good · AQI 0-50", "Satisfactory · AQI 51-100", …, "Very Poor/Severe").
 
 ### City-Wise AQI Prediction Maps
 `src/predict.py` trains a model per Indian city on an **80:20 temporal split**
@@ -57,7 +59,13 @@ coordinate resolved from the hardcoded lookup table
 
 - `output/india_city_predictions.html` — Indian states colored by predicted mean
   AQI + city markers colored by predicted bucket (popup: city, AQI, bucket, dates).
-- `output/world_city_predictions.html` — world choropleth + predicted city markers.
+- `output/world_city_predictions.html` — world choropleth + predicted city markers
+  **plus the curated global cities** (Sydney, London, Paris, New York, LA, SF, …)
+  coloured by their nearest OpenAQ station (or country-mean) AQI.
+
+Both maps carry a **"What each color means"** legend that links every colour to its
+AQI range and the associated health advice (Good → "little or no risk" … Very Poor →
+"respiratory illness on prolonged exposure").
 
 You can extend `data/external/city_locations.csv` with any station/city code row
 (`code,city,country,state,lat,lon`) and the map will resolve it automatically.
@@ -96,7 +104,8 @@ air-quality-hackathon/
 │       ├── geojson/            ← map boundaries
 │       │   ├── india_states.geojson
 │       │   └── world_countries.geojson
-│       └── city_locations.csv  ← hardcoded station/city → lat-lon table
+│       ├── city_locations.csv        ← hardcoded station/city → lat-lon table
+│       └── station_city_lookup.csv   ← location-id → station/city name table
 ├── src/
 │   ├── data/
 │   │   ├── preprocess.py       ← full preprocessing pipeline
@@ -114,7 +123,8 @@ air-quality-hackathon/
 │   └── visualization/
 │       ├── map_global.py       ← world + India colored maps
 │       ├── map_cities.py       ← city-wise prediction maps
-│       └── location_table.py   ← hardcoded city → coordinate resolution
+│       ├── location_table.py   ← hardcoded city → coordinate resolution
+│       └── aqi_spec.py         ← shared AQI buckets/colors + health legend
 ├── output/                     ← generated map HTML/PNG files
 ├── models/
 │   ├── checkpoints/            ← saved .pt model weights

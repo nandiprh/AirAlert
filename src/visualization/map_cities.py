@@ -20,6 +20,7 @@ import geopandas as gpd
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.graph_objects as go
 from matplotlib.patches import Patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
@@ -27,7 +28,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
 
 matplotlib.use("Agg")
 
-from src.visualization.location_table import resolve_many  # noqa: E402
+from src.visualization.aqi_spec import (  # noqa: E402
+    AQI_HEALTH,
+    AQI_RANGES,
+    html_legend,
+    legend_rows,
+)
+from src.visualization.location_table import (  # noqa: E402
+    _haversine_km,
+    load_location_table,
+    resolve_many,
+)
 from src.visualization.map_global import (  # noqa: E402
     AQI_BUCKETS,
     AQI_COLORS,
@@ -36,9 +47,12 @@ from src.visualization.map_global import (  # noqa: E402
     OUTPUT_DIR,
     PROJECT_ROOT,
     WORLD_GEOJSON,
+    assign_countries,
     bucket_color,
     bucket_index,
     load_india_states,
+    load_station_data,
+    load_world_countries,
     log,
 )
 
@@ -136,15 +150,13 @@ html=('<div style="font-size:11px;font-weight:bold;color:#333;'
 
     legend_html = """
     <div style="position:fixed;bottom:30px;left:30px;z-index:9999;
-                background:white;padding:10px;border-radius:6px;
-                box-shadow:0 0 8px rgba(0,0,0,0.3);font-size:13px">
-      <b>Predicted AQI (next-day)</b><br>
+                background:white;padding:10px 14px;border-radius:6px;
+                box-shadow:0 0 8px rgba(0,0,0,0.3);font-size:13px;
+                max-width:290px">
+      <b>What each color means</b>
       {rows}
     </div>
-    """.format(rows="<br>".join(
-        '<i style="background:%s;display:inline-block;width:14px;height:14px;'
-        'border-radius:3px"></i> %s' % (AQI_COLORS[i], label)
-        for i in range(len(AQI_LABELS))))
+    """.format(rows=html_legend(legend_rows(include_health=True)))
     m.get_root().html.add_child(folium.Element(legend_html))
     folium.LayerControl().add_to(m)
     return m
@@ -169,7 +181,8 @@ def plot_india_state_choropleth(pred, states, path):
                     (r["lon"], r["lat"]), fontsize=7,
                     ha="center", va="bottom", zorder=6,
                     bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="#999", lw=0.5))
-    legend = [Patch(facecolor=AQI_COLORS[i], label=AQI_LABELS[i])
+    legend = [Patch(facecolor=AQI_COLORS[i],
+                    label="%s \u00b7 AQI %s" % (AQI_LABELS[i], AQI_RANGES[i]))
               for i in range(len(AQI_LABELS))]
     ax.legend(handles=legend, loc="lower left", fontsize=8, framealpha=0.95)
     ax.set_title("Predicted Next-Day AQI by City (India)", fontsize=14)
@@ -183,10 +196,90 @@ def plot_india_state_choropleth(pred, states, path):
 # World map
 # ---------------------------------------------------------------------------
 
-def build_world_map(pred, world_geojson, path_html, path_png):
+def add_aqi_color_legend(fig):
+    """Add scope-independent legend entries: one per AQI bucket with health text."""
+    for i, label in enumerate(AQI_LABELS):
+        name = "%s \u00b7 AQI %s\n%s" % (label, AQI_RANGES[i], AQI_HEALTH[i])
+        fig.add_trace(go.Scattergeo(
+            lon=[None], lat=[None], mode="markers",
+            marker=dict(size=13, color=AQI_COLORS[i], symbol="square",
+                        line=dict(width=1, color="black")),
+            name=name, showlegend=True,
+        ))
+
+
+def load_global_cities():
+    """Curated non-India cities (Sydney, London, Paris, NYC, ...) + coords."""
+    table = load_location_table()
+    return [e for e in table.values() if e["country"].lower() != "india"]
+
+
+def _iso3_lookup(world):
+    """{normalized name/ADMIN: iso3} from the world boundaries GeoJSON."""
+    out = {}
+    for _, r in world.iterrows():
+        iso = r.get("ISO_A3")
+        for key in (r.get("NAME"), r.get("ADMIN")):
+            if key is not None and not pd.isna(key) and iso:
+                out["".join(ch for ch in str(key).lower() if ch.isalnum())] = iso
+    return out
+
+
+def _match_iso3(country, iso3_map):
+    """ISO3 for a country string, tolerating name variants (fuzzy containment)."""
+    norm = "".join(ch for ch in str(country).lower() if ch.isalnum())
+    if norm in iso3_map:
+        return iso3_map[norm]
+    cands = sorted((len(k), k, v) for k, v in iso3_map.items()
+                   if norm in k or k in norm)
+    return cands[0][2] if cands else None
+
+
+def nearest_station_aqi(lat, lon, station_country, max_km=300):
+    """(aqi, distance_km) of the nearest OpenAQ station, else None."""
+    best = None
+    for _, r in station_country.dropna(subset=["aqi", "lat", "lon"]).iterrows():
+        dist = _haversine_km(lat, lon, float(r["lat"]), float(r["lon"]))
+        if dist <= max_km and (best is None or dist < best[0]):
+            best = (float(r["aqi"]), dist)
+    return best
+
+
+def build_world_map(pred, world_geojson, path_html, path_png, station_country=None):
     log("Building world city-prediction map...")
-    import plotly.graph_objects as go
     world = gpd.read_file(WORLD_GEOJSON)
+    iso3_map = _iso3_lookup(world)
+
+    g_cities = []
+    if station_country is not None and not station_country.empty:
+        # country-mean fallback, keyed by ISO3 (robust to name variants)
+        sc = station_country.copy()
+        sc["iso3"] = sc["NAME"].map(lambda n: _match_iso3(n, iso3_map))
+        mean = sc.dropna(subset=["aqi", "iso3"]).groupby("iso3")["aqi"].mean()
+
+        for e in load_global_cities():
+            hit = nearest_station_aqi(e["lat"], e["lon"], station_country)
+            if hit is not None:
+                aqi, dist = hit
+                g_cities.append({
+                    "city": e["city"], "country": e["country"],
+                    "lat": e["lat"], "lon": e["lon"],
+                    "aqi": float(aqi), "dist": float(dist),
+                    "src": "nearest station",
+                })
+                continue
+            iso3 = _match_iso3(e["country"], iso3_map)
+            if iso3 is None or iso3 not in mean:
+                log("  global city %s: no station near or in %s; skipping"
+                    % (e["city"], e["country"]))
+                continue
+            g_cities.append({
+                "city": e["city"], "country": e["country"],
+                "lat": e["lat"], "lon": e["lon"],
+                "aqi": float(mean[iso3]), "dist": None,
+                "src": "country mean",
+            })
+
     colors = [bucket_color(v, AQI_BUCKETS, AQI_COLORS) for v in pred["predicted_aqi"]]
     fig = go.Figure()
     fig.add_trace(go.Choropleth(
@@ -196,7 +289,7 @@ def build_world_map(pred, world_geojson, path_html, path_png):
         hoverinfo="skip", name="countries"))
     fig.add_trace(go.Scattergeo(
         lon=pred["lon"], lat=pred["lat"], mode="markers",
-        name="Predicted city AQI",
+        name="Predicted next-day AQI (India)",
         marker=dict(size=10 + pred["predicted_aqi"] * 0.35, color=colors,
                     line=dict(width=1, color="black")),
         text=pred["city"].tolist(),
@@ -209,10 +302,41 @@ def build_world_map(pred, world_geojson, path_html, path_png):
             "(%{customdata[2]})<br>Forecast date: %{customdata[3]}"
             "<extra></extra>"),
         showlegend=True))
+
+    if g_cities:
+        g_colors = [bucket_color(c["aqi"], AQI_BUCKETS, AQI_COLORS) for c in g_cities]
+        fig.add_trace(go.Scattergeo(
+            lon=[c["lon"] for c in g_cities],
+            lat=[c["lat"] for c in g_cities],
+            mode="markers",
+            name="Current AQI \u2014 nearest OpenAQ station",
+            marker=dict(size=9, color=g_colors,
+                        symbol="diamond",
+                        line=dict(width=1, color="#111")),
+            text=[c["city"] for c in g_cities],
+            textposition="bottom center",
+            textfont=dict(size=10, color="#333"),
+            customdata=[[c["city"], c["country"], round(c["aqi"], 1),
+                         ("nearest station \u00b7 %.1f km" % c["dist"]
+                          if c["dist"] is not None else "country mean"),
+                         c["src"]] for c in g_cities],
+            hovertemplate=(
+                "<b>%{customdata[0]}</b> (%{customdata[1]})<br>"
+                "AQI: %{customdata[2]}<br>%{customdata[3]}"
+                "<br><i>recent OpenAQ readings</i><extra></extra>"),
+            showlegend=True))
+
+    add_aqi_color_legend(fig)
+
     fig.update_geos(showframe=False, projection_type="natural earth",
                     coastlinecolor="#999", landcolor="#f2f2f2")
-    fig.update_layout(height=600, margin=dict(l=0, r=0, t=30, b=0),
-                      title="Predicted Next-Day AQI by City (world view)")
+    fig.update_layout(height=650, margin=dict(l=0, r=0, t=40, b=0),
+                      title="Predicted Next-Day AQI by City (world view)",
+                      legend=dict(
+                          y=0.98, x=1.01, traceorder="normal",
+                          font=dict(size=12),
+                          itemsizing="constant"),
+                      )
     fig.write_html(path_html)
     log("Saved %s" % path_html)
     try:
@@ -242,9 +366,20 @@ def main():
 
     world = gpd.read_file(WORLD_GEOJSON)
     world_geojson = world.__geo_interface__
+
+    # station_country lets the world map place the curated global cities and
+    # colour them by their country's recent OpenAQ average
+    station_country = None
+    try:
+        station_country = assign_countries(load_station_data(), load_world_countries())
+    except Exception as exc:
+        log("could not load OpenAQ stations for global cities (%s); "
+            "world map will show India predictions only" % exc)
+
     build_world_map(pred, world_geojson,
                     os.path.join(OUTPUT_DIR, "world_city_predictions.html"),
-                    os.path.join(OUTPUT_DIR, "world_city_predictions.png"))
+                    os.path.join(OUTPUT_DIR, "world_city_predictions.png"),
+                    station_country)
     log("Done. Output written to %s" % OUTPUT_DIR)
 
 

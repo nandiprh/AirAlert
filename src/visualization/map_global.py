@@ -25,6 +25,19 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
+from .aqi_spec import (
+    AQI_BUCKETS,
+    AQI_COLORS,
+    AQI_HEALTH,
+    AQI_LABELS,
+    AQI_RANGES,
+    bucket_color,
+    bucket_index,
+    html_legend,
+    legend_rows,
+)
+from .location_table import load_station_city_lookup
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 DATA_RAW = os.path.join(PROJECT_ROOT, "data", "raw")
@@ -52,11 +65,6 @@ PM25_BUCKETS = [(0.0, 12.0), (12.0, 35.0), (35.0, 55.0), (55.0, 150.0), (150.0, 
 PM25_COLORS = [GREEN, YELLOW, ORANGE, RED, DARKRED]
 PM25_LABELS = ["Good (<12)", "Moderate (12-35)", "Unhealthy for Sensitive (35-55)",
                "Unhealthy (55-150)", "Very Unhealthy (150+)"]
-
-AQI_BUCKETS = [(0.0, 50.0), (50.0, 100.0), (100.0, 200.0), (200.0, 300.0), (300.0, math.inf)]
-AQI_COLORS = [GREEN, YELLOW, ORANGE, RED, DARKRED]
-AQI_LABELS = ["Good (0-50)", "Satisfactory (50-100)", "Moderate (100-200)",
-              "Poor (200-300)", "Very Poor / Severe (300+)"]
 
 EPA_BREAKPOINTS = [
     (0.0, 12.0, 0, 50),
@@ -86,22 +94,6 @@ FALLBACK_CITY_COORDS = {
 
 def log(message):
     print("[map_global] " + message)
-
-
-def bucket_index(value, buckets):
-    if value is None or (isinstance(value, float) and math.isnan(value)):
-        return None
-    for i, (lo, hi) in enumerate(buckets):
-        if lo <= value < hi:
-            return i
-    return len(buckets) - 1
-
-
-def bucket_color(value, buckets, colors):
-    idx = bucket_index(value, buckets)
-    if idx is None:
-        return GREY
-    return colors[idx]
 
 
 def pm25_to_aqi(pm25):
@@ -293,10 +285,10 @@ def save_world_plotly(merged, stations, html_path):
         showscale=True,
     ))
     marker_custom = np.stack([
+        stations["display_name"].astype(str).values,
         stations["location_id"].astype(str).values,
-        stations["lat"].round(3).astype(str).values,
-        stations["lon"].round(3).astype(str).values,
         stations["aqi"].round(0).astype(str).values,
+        stations["pm25"].round(1).astype(str).values,
     ], axis=-1)
     station_colors = stations["pm25"].apply(
         lambda v: bucket_color(v, PM25_BUCKETS, PM25_COLORS)).tolist()
@@ -306,8 +298,9 @@ def save_world_plotly(merged, stations, html_path):
         mode="markers",
         marker=dict(size=6, color=station_colors, line=dict(width=0.6, color="black")),
         customdata=marker_custom,
-        hovertemplate="Location %{customdata[0]}<br>lat %{customdata[1]}"
-                      "<br>lon %{customdata[2]}<br>AQI %{customdata[3]}<extra></extra>",
+        hovertemplate="<b>%{customdata[0]}</b><br>Station ID %{customdata[1]}"
+                      "<br>AQI %{customdata[2]} (PM2.5 %{customdata[3]} µg/m³)"
+                      "<extra></extra>",
         name="Stations",
         showlegend=False,
     ))
@@ -460,7 +453,6 @@ def state_standings(city_state, states):
 def save_india_folium(standings, city_state, html_path):
     log("Building interactive India choropleth with folium...")
     import folium
-    import branca.colormap
 
     m = folium.Map(location=[22.5, 79.5], zoom_start=5, tiles="CartoDB positron")
 
@@ -501,17 +493,14 @@ def save_india_folium(standings, city_state, html_path):
     city_layer.add_to(m)
     folium.LayerControl(collapsed=False).add_to(m)
 
-    try:
-        cm = branca.colormap.StepColormap(
-            AQI_COLORS,
-            index=[0, 1, 2, 3, 4],
-            vmin=0,
-            vmax=4,
-            caption="Average AQI per Indian state",
-        )
-        cm.add_to(m)
-    except Exception as exc:
-        log("WARNING: could not add legend (%s)" % exc)
+    legend_html = (
+        '<div style="position:fixed;bottom:25px;right:25px;z-index:9999;'
+        'background:white;padding:10px 14px;border-radius:6px;'
+        'box-shadow:0 0 8px rgba(0,0,0,0.3);font-size:13px;max-width:300px">'
+        "<b>What each color means</b>"
+        + html_legend(legend_rows(include_health=True))
+        + "</div>")
+    m.get_root().html.add_child(folium.Element(legend_html))
 
     m.save(html_path)
     log("Saved " + html_path)
@@ -533,7 +522,8 @@ def save_india_png(standings, city_state, png_path):
     for _, r in city_state.iterrows():
         ax.annotate(r["City"], (r["lon"], r["lat"]), fontsize=7,
                     xytext=(3, 3), textcoords="offset points", color="#222222")
-    handles = [Patch(facecolor=c, label=l) for c, l in zip(AQI_COLORS, AQI_LABELS)]
+    handles = [Patch(facecolor=c, label="%s \u00b7 AQI %s" % (l, r))
+               for c, l, r in zip(AQI_COLORS, AQI_LABELS, AQI_RANGES)]
     ax.legend(handles=handles, loc="lower right", fontsize=8, framealpha=0.9)
     ax.set_title("Average AQI per Indian State (latest readings by city)")
     ax.set_axis_off()
@@ -550,6 +540,14 @@ def main():
     world = load_world_countries()
     stations = load_station_data()
     station_country = assign_countries(stations, world)
+
+    # location_id -> human-readable city/station name for hover tooltips
+    names = load_station_city_lookup()
+    station_country = station_country.copy()
+    station_country["display_name"] = station_country["location_id"].astype(int).map(
+        names).fillna(station_country["location_id"].map(lambda i: "Station %s" % i))
+    station_country["display_name"] = station_country["display_name"].astype(str)
+
     country_merged = build_country_aggregation(station_country, world)
 
     world_html = os.path.join(OUTPUT_DIR, "world_aqi_map.html")
