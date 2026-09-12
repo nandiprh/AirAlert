@@ -221,6 +221,60 @@ All take `x (B, T, F)` and return `(reg, cls)` where `cls` may be `None`.
 Each ends with a dropout + Linear head feeding **two heads**: `fc_reg`
 (single AQI value) and optional `fc_cls` (logits over `num_classes` buckets).
 
+### Plain-language explanation of each algorithm
+
+All models share a two-stage *hybrid* design: stage one extracts useful
+features, stage two captures long-range time structure, then two heads
+produce the AQI regression and bucket classification.
+
+**1. LSTM + CNN** — An LSTM memory cell walks the window left→right and
+remembers pollution trends over days, emitting one hidden vector per
+timestep. A 1D CNN then slides a convolution kernel across those hidden
+vectors to detect *local* patterns (e.g. a 3-day pollution spike).
+Adaptive max-pool collapses the result into one vector for the heads.
+*Sequence memory + local pattern detection in one model.*
+
+**2. CNN + BiLSTM** — Reversed order: 1D convolutions first operate
+directly on the raw pollutants to grab local features, which feed a
+*bidirectional* LSTM that reads the series forwards **and** backwards so
+each position sees past and future context. The final forward and backward
+states are concatenated before the heads.
+*Fast feature extraction (CNN) + dual-direction context (BiLSTM).*
+
+**3. LSTM + Attention** — An LSTM encodes the window, then an *additive
+(Bahdanau) attention* mechanism scores each of the timesteps, softmaxes the
+scores into weights, and sums the hidden states into one weighted context
+vector. The model learns to focus on the most informative days (e.g. the
+polluted ones) instead of blindly averaging the whole window.
+*"Pay attention to the days that matter."*
+
+**4. Transformer + LSTM** — The window is position-encoded (sinusoidal
+timestamps), passed through a Transformer encoder whose *multi-head
+self-attention* lets every timestep attend to every other timestep
+globally — capturing long-range dependencies RNNs struggle with. A final
+LSTM refines the attended sequence, and its last hidden state feeds the
+heads.
+*Global attention (Transformer) + sequential refinement (LSTM).*
+
+**5. ConvLSTM + Attention** — Three stacked 1D convolution layers extract
+multi-scale local features; an LSTM encodes that sequence; then a *scaled
+dot-product self-attention* layer builds a full `T×T` attention matrix
+(each timestep attends to all others, divided by `√d` for stable
+gradients), producing a context vector that is max-pooled across time.
+*Deep conv features + content-aware temporal weighting.*
+
+### Supporting algorithms (`train.py`)
+
+| Algorithm | Where | What it does |
+|-----------|-------|--------------|
+| Sliding windows | `preprocess_dataset` | Each sample = last `seq_len` pollutant days predicting the next AQI; split happens *before* windowing so no window crosses a partition boundary (temporal-leakage safety). |
+| 80:20 temporal split | `preprocess_dataset` | First 80% train, last 20% test; a small validation slice is carved from the train tail so early stopping never touches test. |
+| SMOTE | `apply_smote` | Synthetic minority-bucket oversampling on **training windows only** — the classifier no longer collapses onto the dominant bucket. |
+| Overfit/underfit correction | `detect_issue` | Overfit (val loss climbing far above train) → raise dropout + early stop; underfit (val flat) → raise `hidden_size` + epochs; then it retrains automatically. |
+| Adam + ReduceLROnPlateau | `run_training` | Adaptive-gradient optimizer; LR halves when validation loss plateaus. |
+| Early stopping | `run_training` | Keeps the best-weights snapshot; stops training after `patience` epochs without validation improvement. |
+| Metric reporting | `compute_metrics` / `evaluate` | RMSE/MAE/R² for regression; accuracy/F1/confusion matrix for classification. |
+
 ---
 
 ## 5. Training Pipeline (`src/train.py`)
