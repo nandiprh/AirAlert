@@ -23,3 +23,6 @@ benchmarking/logs/
 # OS / editor
 .DS_Store
 *.swp
+# packaging
+build/
+dist/
