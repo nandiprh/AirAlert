@@ -124,6 +124,7 @@ air-quality-hackathon/
 │   ├── FETCH_AND_RUN.md        ← step-by-step execution guide
 │   └── CODE_ARCHITECTURE.md    ← file-by-file code explanation + layout
 │   └── MODEL_COMPARISON.md     ← 5-model accuracy vs efficiency benchmark
+│   └── MODEL_MATH_AND_RUN.md   ← how to run + model math + code walkthrough
 ├── scripts/
 │   ├── openaq_scan.py          ← worldwide OpenAQ station discovery (S3 scan)
 │   ├── openaq_select.py        ← merge scans + country-balanced selection

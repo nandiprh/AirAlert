@@ -8,6 +8,8 @@ Related docs:
 - **docs/FETCH_AND_RUN.md** — the exact commands to reproduce every step.
 - **docs/MODEL_COMPARISON.md** — measured accuracy vs efficiency of the five
   models + which to pick for deployment.
+- **docs/MODEL_MATH_AND_RUN.md** — how to run everything, the full mathematics
+  (LSTM/CNN/attention/Transformer/loss/metrics) and a code-level walkthrough.
 
 ---
 
