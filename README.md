@@ -123,6 +123,7 @@ air-quality-hackathon/
 │   ├── DATA_SOURCES.md         ← full dataset provenance log
 │   ├── FETCH_AND_RUN.md        ← step-by-step execution guide
 │   └── CODE_ARCHITECTURE.md    ← file-by-file code explanation + layout
+│   └── MODEL_COMPARISON.md     ← 5-model accuracy vs efficiency benchmark
 ├── scripts/
 │   ├── openaq_scan.py          ← worldwide OpenAQ station discovery (S3 scan)
 │   ├── openaq_select.py        ← merge scans + country-balanced selection

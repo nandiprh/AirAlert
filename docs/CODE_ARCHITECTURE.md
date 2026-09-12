@@ -6,6 +6,8 @@ and the design decisions behind the AI-based air quality predictor.
 Related docs:
 - **docs/DATA_SOURCES.md** — where each dataset came from and how it was fetched.
 - **docs/FETCH_AND_RUN.md** — the exact commands to reproduce every step.
+- **docs/MODEL_COMPARISON.md** — measured accuracy vs efficiency of the five
+  models + which to pick for deployment.
 
 ---
 
