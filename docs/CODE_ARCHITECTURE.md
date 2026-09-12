@@ -113,7 +113,19 @@ air-quality-hackathon/
 ├── scripts/                           # one-off data-fetch utilities
 │   ├── openaq_scan.py                 # discover stations from S3 archive
 │   ├── openaq_select.py               # country-balanced station selection
-│   └── openaq_fetch.py                # pre-fetch day files to disk
+│   ├── openaq_fetch.py                # pre-fetch day files to disk
+│   └── benchmark_models.py            # single-config 5-model comparison
+│
+├── benchmarking/                      # parameter-sweep benchmark suite
+│   ├── run_sweep.py                   # 5 models × {seq_len,hidden} grid → results/*.json
+│   ├── compare_and_report.py          # sensitivity analysis → comparison.md + charts
+│   ├── comparison.md                  # latest comparison write-up
+│   ├── ranking_*.csv                  # all runs sorted by test RMSE
+│   ├── summary_*.json / .csv          # flat roll-up of every run
+│   ├── results/<dataset>/<model>__<gridpt>.json   # one log per run (40)
+│   ├── charts/                        # accuracy-vs-size, grouped-RMSE PNGs
+│   ├── ckpt/  (gitignored)            # per-run checkpoints
+│   └── logs/  (gitignored)            # sweep console + failure logs
 │
 ├── models/                            # training artifacts (gitignored)
 │   ├── checkpoints/                   # *.pt weights + metadata
@@ -481,7 +493,51 @@ HTTP 403 and blank the page).
 
 ---
 
-## 9. Data Flow (end to end)
+## 9. Benchmarking suite (`benchmarking/`)
+
+A repeatable, resumable parameter sweep that measures **how each algorithm
+behaves as its parameters change**, complementing the one-shot
+`scripts/benchmark_models.py`.
+
+### `run_sweep.py`
+
+```
+python benchmarking/run_sweep.py --epochs 5            # defaults: uci+india, full grid
+python benchmarking/run_sweep.py --dataset uci --grid light --epochs 30
+```
+
+- Grid = `{seq_len: 7, 24} × {hidden_size: 32, 128}` (plus presets `light`,
+  `triple`, `single`). Data windows/scalers are computed **once per
+  dataset×seq_len** and shared by every model for a fair head-to-head.
+- Per run it records: the **full `Config` actually used** (so results are
+  attributable to parameters), test RMSE/MAE/R2/acc/F1, `params`
+  (`sum(p.numel())`), CPU `train_time_s`, `inference_ms_per_batch`
+  (warm 50 passes on `(64, T, F)`), checkpoint size, epochs run,
+  detect/corrections and the full train/val loss history.
+- Writes `benchmarking/results/<dataset>/<model>__<gridpt>.json` (skipped
+  when present via `--resume`), plus `summary_<ts>.json/.csv`.
+
+### `compare_and_report.py`
+
+Aggregates `results/**/*.json` and emits:
+
+- `benchmarking/comparison.md` — per-model grid tables, **parameter
+  sensitivity** (`ΔRMSE = RMSE(param_high) − RMSE(param_low)` for
+  hidden_size and seq_len), cross-model ranking at each model's best
+  grid point, per-dataset verdicts (most accurate / fewest params / best
+  balance), embedded charts;
+- `ranking_<ts>.csv` — every run sorted by test RMSE;
+- `comparison_<ts>.json` — machine-readable verdicts;
+- `charts/accuracy_<ts>.png` (log-scale RMSE vs params) and
+  `charts/rmse_bars_<ts>.png`.
+
+**Balance score** (lower is better) used in the verdicts — each metric
+min-max normalized over all runs: `score = 0.5·ṟmse + 0.3·p̂arams + 0.2·t̂rain`.
+Full formulas: `docs/MATHEMATICAL_MODELING.md` §7.
+
+---
+
+## 10. Data Flow (end to end)
 
 ```
 1. curl/scripts  ─▶ data/raw/                       (documented in DATA_SOURCES.md)
@@ -492,6 +548,8 @@ HTTP 403 and blank the page).
 6. predict.py    ─▶ data/processed/predictions/city_predictions.csv
 7. map_global.py ─▶ output/{world,india}_aqi_map.{html,png}
 8. map_cities.py ─▶ output/{world,india}_city_predictions.{html,png}
+9. benchmarking/run_sweep.py ─▶ benchmarking/results/<ds>/<model>__<grid>.json
+10. benchmarking/compare_and_report.py ─▶ benchmarking/comparison.md + ranking_*.csv
 ```
 
 Input feature contract (India): `PM2.5, PM10, NO, NO2, NOx, NH3, CO, SO2, O3`
@@ -500,7 +558,7 @@ Input feature contract (India): `PM2.5, PM10, NO, NO2, NOx, NH3, CO, SO2, O3`
 
 ---
 
-## 10. Reproducibility Notes
+## 11. Reproducibility Notes
 
 - `deterministic_seed` + `Config.seed` make training repeatable; auto-correction
   rounds reseed with `seed + round` so each retrain is deterministic.

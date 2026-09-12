@@ -316,11 +316,17 @@ src/visualization/map_global.py ← colored world + India maps
 src/visualization/map_cities.py ← city-wise prediction maps
 src/visualization/location_table.py ← hardcoded city → coordinate resolution
 src/visualization/aqi_spec.py ← shared AQI buckets/colors + health legend
+benchmarking/run_sweep.py      ← parameter-sweep benchmarks → results/*.json
+benchmarking/compare_and_report.py ← sensitivity / comparison → comparison.md
 
 output/                       ← map HTML + PNG files
 models/checkpoints/           ← saved .pt model files
 models/reports/               ← metrics JSON + evaluation plots
 ```
+
+> Mathematical derivations (LSTM gates, CNN, attention, Transformer, SMOTE,
+> EPA/CPCB AQI, metrics, benchmark sensitivity/balance scores):
+> **[docs/MATHEMATICAL_MODELING.md](MATHEMATICAL_MODELING.md)**.
 
 ---
 

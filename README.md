@@ -130,11 +130,20 @@ air-quality-hackathon/
 │   ├── checkpoints/            ← saved .pt model weights
 │   └── reports/                ← metrics + evaluation plots
 ├── docs/
-│   ├── DATA_SOURCES.md         ← full dataset provenance log
-│   ├── FETCH_AND_RUN.md        ← step-by-step execution guide
-│   └── CODE_ARCHITECTURE.md    ← file-by-file code explanation + layout
-│   └── MODEL_COMPARISON.md     ← 5-model accuracy vs efficiency benchmark
-│   └── MODEL_MATH_AND_RUN.md   ← how to run + model math + code walkthrough
+│   ├── DATA_SOURCES.md          ← full dataset provenance log
+│   ├── FETCH_AND_RUN.md         ← step-by-step execution guide
+│   ├── CODE_ARCHITECTURE.md     ← file-by-file code explanation + layout
+│   ├── MODEL_COMPARISON.md      ← 5-model accuracy vs efficiency benchmark
+│   ├── MODEL_MATH_AND_RUN.md    ← how to run + model math + code walkthrough
+│   └── MATHEMATICAL_MODELING.md ← formal math of every model/algo/score
+├── benchmarking/                ← parameter-sweep benchmark suite
+│   ├── run_sweep.py             ← 5 models × {seq_len} × {hidden} grid
+│   ├── compare_and_report.py    ← sensitivity analysis + comparison.md
+│   ├── comparison.md            ← the comparison write-up (latest run)
+│   ├── ranking_*.csv            ← all runs sorted by test RMSE
+│   ├── summary_*.json/.csv      ← flat roll-up of every run
+│   ├── results/                 ← one JSON log per run (40 files)
+│   └── charts/                  ← accuracy-vs-size, grouped RMSE plots
 ├── scripts/
 │   ├── openaq_scan.py          ← worldwide OpenAQ station discovery (S3 scan)
 │   ├── openaq_select.py        ← merge scans + country-balanced selection
@@ -176,7 +185,11 @@ python src/visualization/map_cities.py
 
 Full execution details are documented in **[docs/FETCH_AND_RUN.md](docs/FETCH_AND_RUN.md)**;
 a file-by-file explanation of the code and source layout is in
-**[docs/CODE_ARCHITECTURE.md](docs/CODE_ARCHITECTURE.md)**.
+**[docs/CODE_ARCHITECTURE.md](docs/CODE_ARCHITECTURE.md)**; the formal
+mathematics behind every model, algorithm and score are in
+**[docs/MATHEMATICAL_MODELING.md](docs/MATHEMATICAL_MODELING.md)**; the
+parameter-sweep benchmark results live in
+**[benchmarking/comparison.md](benchmarking/comparison.md)**.
 
 ---
 

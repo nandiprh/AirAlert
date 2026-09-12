@@ -6,7 +6,8 @@ code walkthrough**.
 
 Companion docs: `docs/CODE_ARCHITECTURE.md` (files & layout),
 `docs/FETCH_AND_RUN.md` (exact reproduction commands),
-`docs/DATA_SOURCES.md` (provenance), `docs/MODEL_COMPARISON.md` (results).
+`docs/DATA_SOURCES.md` (provenance), `docs/MODEL_COMPARISON.md` (results),
+`docs/MATHEMATICAL_MODELING.md` (formal math of every model/algo/score).
 
 ---
 
@@ -91,15 +92,33 @@ cd output && python3 -m http.server 8000
 ### 7. Reproduce the 5-model benchmark
 
 ```bash
+# Original single-config head-to-head (UCI, seq_len 24, 50 epochs):
 .venv/bin/python scripts/benchmark_models.py --seq_len 24
+# Outputs: models/reports/model_comparison_*.json (results: docs/MODEL_COMPARISON.md)
+
+# Parameter-sweep suite (5 models × {seq_len 7,24} × {hidden 32,128},
+# 5 iterations each, uci + india):
+.venv/bin/python benchmarking/run_sweep.py --epochs 5
+.venv/bin/python benchmarking/compare_and_report.py
+# Outputs: benchmarking/results/*.json (one log per run),
+# benchmarking/comparison.md (parameter-effect analysis), charts, rankings.
 ```
 
-Outputs: `models/reports/model_comparison_*.json` (results: `
-docs/MODEL_COMPARISON.md`).
+### 8. The formal math
+
+Model formulas used everywhere in the code (LSTM gates, CNN, attention,
+Transformer, SMOTE, EPA/CPCB AQI, metrics, and the benchmark sensitivity /
+balance scores) are derived in [`docs/MATHEMATICAL_MODELING.md`](MATHEMATICAL_MODELING.md).
 
 ---
 
 ## Part 2 — Mathematical Model
+
+> Complete, notation-precise derivations (z-score, windows, SMOTE, EPA/CPCB
+> AQI, every architecture, the multi-task loss, metrics, correction rules
+> and the benchmark sensitivity/balance scores) live in
+> [`docs/MATHEMATICAL_MODELING.md`](MATHEMATICAL_MODELING.md). This part is
+> the condensed recap.
 
 ### 2.1 Notation
 
@@ -362,12 +381,20 @@ are written to `city_predictions.csv` + a summary JSON.
 `india_cities.csv` → `None`. `resolve_many` batches it. This hardcoded
 table fixes ambiguous/erroneous matches (e.g. "Visakhapatnam"→Bihar).
 
-### 3.7 `scripts/benchmark_models.py` — the §1.7 benchmark
+### 3.7 Benchmarking (`scripts/benchmark_models.py`, `benchmarking/`)
 
-For each of the 5 models with one shared `Config`: `run_training` (timed)
-→ `sum(p.numel())` params → `inference_timing` (mean ms over 50 warm
-forward passes on `(64, seq_len, F)`) → strip arrays → write
-`model_comparison_*.json` and print RMSE + params rankings.
+`scripts/benchmark_models.py` — for each of the 5 models with one shared
+`Config`: `run_training` (timed) → `sum(p.numel())` params →
+`inference_timing` (mean ms over 50 warm forward passes on
+`(64, seq_len, F)`) → strip arrays → write `model_comparison_*.json` and
+print RMSE + params rankings.
+
+`benchmarking/run_sweep.py` — the newer **parameter sweep**: same shared
+data/seed, grid `{seq_len} × {hidden_size}`, one JSON log per run under
+`benchmarking/results/<dataset>/<model>__<gridpt>.json` (resumable).
+`benchmarking/compare_and_report.py` builds `benchmarking/comparison.md`
+(per-model tables, parameter-sensitivity deltas, cross-model ranking,
+verdict + charts).
 
 ### 3.8 Data layer
 

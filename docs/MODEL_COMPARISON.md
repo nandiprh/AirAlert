@@ -4,6 +4,12 @@ Controlled head-to-head benchmark of the five architectures in
 `src/models/`. Raw numbers in `docs/model_comparison_results.json`; the
 benchmark is reproducible with `scripts/benchmark_models.py`.
 
+> **Also see `benchmarking/comparison.md`** — the parameter-sweep suite
+> (`benchmarking/run_sweep.py`) that retrains all five models at a
+> `seq_len × hidden_size` grid to show how each algorithm responds to its
+> parameters. This file is the *single-configuration* head-to-head;
+> the sweep is the *parameter-by-parameter* comparison.
+
 ## 1. Methodology
 
 | Setting | Value |
