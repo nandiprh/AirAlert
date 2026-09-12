@@ -16,6 +16,10 @@ models/reports/
 # Output maps / plots
 output/
 
+# Benchmarking artifacts (regenerate; results/ + charts/ are tracked)
+benchmarking/ckpt/
+benchmarking/logs/
+
 # OS / editor
 .DS_Store
 *.swp

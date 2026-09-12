@@ -1,0 +1,132 @@
+{
+  "dataset": "uci",
+  "model": "convlstm_attention",
+  "cfgid": "s24_h32",
+  "config": {
+    "epochs": 5,
+    "seq_len": 24,
+    "batch_size": 64,
+    "lr": 0.001,
+    "hidden_size": 32,
+    "num_layers": 2,
+    "dropout": 0.2,
+    "task": "both",
+    "patience": 12,
+    "early_stopping": true,
+    "lr_schedule": "plateau",
+    "city": null,
+    "weight_decay": 1e-05,
+    "overfit_budget": 8,
+    "underfit_budget": 8,
+    "max_lr_reductions": 2,
+    "quiet": false,
+    "no_smote": false
+  },
+  "task": "both",
+  "input_size": 13,
+  "corrections": 0,
+  "detection": "none",
+  "epochs": 5,
+  "params": 35205,
+  "train_time_s": 1.4,
+  "inference_ms_per_batch": 3.84,
+  "checkpoint_mb": 0.16,
+  "history": [
+    {
+      "epoch": 1.0,
+      "train_loss": 2.4141175096685235,
+      "val_loss": 3.8963217735290527
+    },
+    {
+      "epoch": 2.0,
+      "train_loss": 2.346652312712236,
+      "val_loss": 3.6523983478546143
+    },
+    {
+      "epoch": 3.0,
+      "train_loss": 2.2656058723276313,
+      "val_loss": 3.3003082275390625
+    },
+    {
+      "epoch": 4.0,
+      "train_loss": 2.195767890323292,
+      "val_loss": 3.493016242980957
+    },
+    {
+      "epoch": 5.0,
+      "train_loss": 2.1287941282445733,
+      "val_loss": 3.7212672233581543
+    }
+  ],
+  "val_rmse": 1.9081,
+  "val_mae": 1.485,
+  "val_r2": -0.3143,
+  "val_n": 42.0,
+  "val_accuracy": 0.5714,
+  "val_precision": 0.3265,
+  "val_recall": 0.5714,
+  "val_f1": 0.4156,
+  "val_confusion_matrix": [
+    [
+      0,
+      0,
+      0,
+      3
+    ],
+    [
+      0,
+      0,
+      0,
+      2
+    ],
+    [
+      0,
+      0,
+      0,
+      13
+    ],
+    [
+      0,
+      0,
+      0,
+      24
+    ]
+  ],
+  "val_cls_n": 42.0,
+  "test_loss": 2.2454,
+  "test_rmse": 1.378,
+  "test_mae": 1.0939,
+  "test_r2": 0.0515,
+  "test_n": 142.0,
+  "test_accuracy": 0.3732,
+  "test_precision": 0.2491,
+  "test_recall": 0.3732,
+  "test_f1": 0.2763,
+  "test_confusion_matrix": [
+    [
+      1,
+      12,
+      0,
+      17
+    ],
+    [
+      1,
+      16,
+      0,
+      15
+    ],
+    [
+      1,
+      17,
+      0,
+      16
+    ],
+    [
+      2,
+      8,
+      0,
+      36
+    ]
+  ],
+  "test_cls_n": 142.0
+}

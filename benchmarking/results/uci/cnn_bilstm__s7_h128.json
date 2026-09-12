@@ -1,0 +1,132 @@
+{
+  "dataset": "uci",
+  "model": "cnn_bilstm",
+  "cfgid": "s7_h128",
+  "config": {
+    "epochs": 5,
+    "seq_len": 7,
+    "batch_size": 64,
+    "lr": 0.001,
+    "hidden_size": 128,
+    "num_layers": 2,
+    "dropout": 0.2,
+    "task": "both",
+    "patience": 12,
+    "early_stopping": true,
+    "lr_schedule": "plateau",
+    "city": null,
+    "weight_decay": 1e-05,
+    "overfit_budget": 8,
+    "underfit_budget": 8,
+    "max_lr_reductions": 2,
+    "quiet": false,
+    "no_smote": false
+  },
+  "task": "both",
+  "input_size": 13,
+  "corrections": 0,
+  "detection": "none",
+  "epochs": 5,
+  "params": 270725,
+  "train_time_s": 1.13,
+  "inference_ms_per_batch": 3.113,
+  "checkpoint_mb": 1.1,
+  "history": [
+    {
+      "epoch": 1.0,
+      "train_loss": 2.224967966477076,
+      "val_loss": 2.5520753860473633
+    },
+    {
+      "epoch": 2.0,
+      "train_loss": 1.559162010749181,
+      "val_loss": 1.9517799615859985
+    },
+    {
+      "epoch": 3.0,
+      "train_loss": 1.2802292903264363,
+      "val_loss": 1.983081340789795
+    },
+    {
+      "epoch": 4.0,
+      "train_loss": 1.0868788957595825,
+      "val_loss": 1.609848141670227
+    },
+    {
+      "epoch": 5.0,
+      "train_loss": 0.9642936487992605,
+      "val_loss": 2.447693347930908
+    }
+  ],
+  "val_rmse": 1.2264,
+  "val_mae": 0.8852,
+  "val_r2": 0.4037,
+  "val_n": 59.0,
+  "val_accuracy": 0.661,
+  "val_precision": 0.7595,
+  "val_recall": 0.661,
+  "val_f1": 0.6964,
+  "val_confusion_matrix": [
+    [
+      5,
+      1,
+      0,
+      0
+    ],
+    [
+      3,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      5,
+      10,
+      1
+    ],
+    [
+      0,
+      1,
+      9,
+      24
+    ]
+  ],
+  "val_cls_n": 59.0,
+  "test_loss": 1.2273,
+  "test_rmse": 0.8706,
+  "test_mae": 0.6417,
+  "test_r2": 0.5942,
+  "test_n": 159.0,
+  "test_accuracy": 0.6667,
+  "test_precision": 0.6631,
+  "test_recall": 0.6667,
+  "test_f1": 0.6581,
+  "test_confusion_matrix": [
+    [
+      25,
+      6,
+      1,
+      0
+    ],
+    [
+      4,
+      21,
+      8,
+      2
+    ],
+    [
+      2,
+      3,
+      19,
+      20
+    ],
+    [
+      0,
+      0,
+      7,
+      41
+    ]
+  ],
+  "test_cls_n": 159.0
+}

@@ -1,0 +1,132 @@
+{
+  "datasets": [
+    "india",
+    "uci"
+  ],
+  "epochs": 5,
+  "stamp": "20260912_135553",
+  "verdicts": {
+    "india": {
+      "ranking": [
+        {
+          "model": "cnn_bilstm",
+          "gridpt": "s24_h128",
+          "rmse": 35.0194,
+          "r2": 0.9137,
+          "acc": 0.6204,
+          "params": 269447,
+          "train_time_s": 6.85,
+          "balance": 0.41785436480511423
+        },
+        {
+          "model": "transformer_lstm",
+          "gridpt": "s7_h128",
+          "rmse": 35.3932,
+          "r2": 0.9091,
+          "acc": 0.627,
+          "params": 547335,
+          "train_time_s": 7.6,
+          "balance": 0.5836322916497599
+        },
+        {
+          "model": "lstm_cnn",
+          "gridpt": "s7_h32",
+          "rmse": 35.751,
+          "r2": 0.9072,
+          "acc": 0.5595,
+          "params": 35079,
+          "train_time_s": 1.73,
+          "balance": 0.2460520044265151
+        },
+        {
+          "model": "lstm_attention",
+          "gridpt": "s7_h128",
+          "rmse": 38.6944,
+          "r2": 0.8913,
+          "acc": 0.6514,
+          "params": 224807,
+          "train_time_s": 2.57,
+          "balance": 0.379307717906118
+        },
+        {
+          "model": "convlstm_attention",
+          "gridpt": "s7_h128",
+          "rmse": 39.0453,
+          "r2": 0.8894,
+          "acc": 0.6243,
+          "params": 363399,
+          "train_time_s": 4.27,
+          "balance": 0.474477190082723
+        }
+      ],
+      "most_accurate": "cnn_bilstm",
+      "fewest_params": {
+        "model": "lstm_attention",
+        "cfgid": "s7_h32",
+        "params": 16295
+      },
+      "best_balance": "lstm_cnn"
+    },
+    "uci": {
+      "ranking": [
+        {
+          "model": "transformer_lstm",
+          "gridpt": "s24_h128",
+          "rmse": 0.6845,
+          "r2": 0.766,
+          "acc": 0.6901,
+          "params": 547589,
+          "train_time_s": 6.95,
+          "balance": 0.35554118154376885
+        },
+        {
+          "model": "cnn_bilstm",
+          "gridpt": "s24_h128",
+          "rmse": 0.7975,
+          "r2": 0.6823,
+          "acc": 0.5915,
+          "params": 270725,
+          "train_time_s": 2.02,
+          "balance": 0.15741387839071955
+        },
+        {
+          "model": "lstm_cnn",
+          "gridpt": "s7_h128",
+          "rmse": 0.9749,
+          "r2": 0.4911,
+          "acc": 0.5786,
+          "params": 535301,
+          "train_time_s": 1.93,
+          "balance": 0.30717081156261433
+        },
+        {
+          "model": "convlstm_attention",
+          "gridpt": "s7_h128",
+          "rmse": 1.132,
+          "r2": 0.3139,
+          "acc": 0.5723,
+          "params": 363525,
+          "train_time_s": 1.63,
+          "balance": 0.20859627664011526
+        },
+        {
+          "model": "lstm_attention",
+          "gridpt": "s7_h128",
+          "rmse": 1.258,
+          "r2": 0.1526,
+          "acc": 0.434,
+          "params": 226597,
+          "train_time_s": 0.87,
+          "balance": 0.12553227358184077
+        }
+      ],
+      "most_accurate": "transformer_lstm",
+      "fewest_params": {
+        "model": "lstm_attention",
+        "cfgid": "s7_h32",
+        "params": 16741
+      },
+      "best_balance": "lstm_attention"
+    }
+  }
+}

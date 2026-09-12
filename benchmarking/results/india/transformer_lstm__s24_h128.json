@@ -1,0 +1,180 @@
+{
+  "dataset": "india",
+  "model": "transformer_lstm",
+  "cfgid": "s24_h128",
+  "config": {
+    "epochs": 5,
+    "seq_len": 24,
+    "batch_size": 64,
+    "lr": 0.001,
+    "hidden_size": 128,
+    "num_layers": 2,
+    "dropout": 0.2,
+    "task": "both",
+    "patience": 12,
+    "early_stopping": true,
+    "lr_schedule": "plateau",
+    "city": null,
+    "weight_decay": 1e-05,
+    "overfit_budget": 8,
+    "underfit_budget": 8,
+    "max_lr_reductions": 2,
+    "quiet": false,
+    "no_smote": false
+  },
+  "task": "both",
+  "input_size": 9,
+  "corrections": 0,
+  "detection": "none",
+  "epochs": 5,
+  "params": 547335,
+  "train_time_s": 23.7,
+  "inference_ms_per_batch": 16.578,
+  "checkpoint_mb": 2.25,
+  "history": [
+    {
+      "epoch": 1.0,
+      "train_loss": 1.7115498293529858,
+      "val_loss": 1.1345589756965637
+    },
+    {
+      "epoch": 2.0,
+      "train_loss": 1.021306787476395,
+      "val_loss": 0.9844077527523041
+    },
+    {
+      "epoch": 3.0,
+      "train_loss": 0.8701390335054109,
+      "val_loss": 0.9227308630943298
+    },
+    {
+      "epoch": 4.0,
+      "train_loss": 0.8187591018098773,
+      "val_loss": 0.7965307533740997
+    },
+    {
+      "epoch": 5.0,
+      "train_loss": 0.7676174640655518,
+      "val_loss": 0.9912041425704956
+    }
+  ],
+  "val_rmse": 41.1738,
+  "val_mae": 32.4048,
+  "val_r2": 0.5046,
+  "val_n": 126.0,
+  "val_accuracy": 0.7143,
+  "val_precision": 0.7382,
+  "val_recall": 0.7143,
+  "val_f1": 0.714,
+  "val_confusion_matrix": [
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      37,
+      19,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      9,
+      50,
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      5,
+      0,
+      1,
+      3
+    ]
+  ],
+  "val_cls_n": 126.0,
+  "test_loss": 0.8189,
+  "test_rmse": 37.0668,
+  "test_mae": 27.8462,
+  "test_r2": 0.9033,
+  "test_n": 353.0,
+  "test_accuracy": 0.6431,
+  "test_precision": 0.6886,
+  "test_recall": 0.6431,
+  "test_f1": 0.6423,
+  "test_confusion_matrix": [
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      83,
+      8,
+      59,
+      0,
+      0
+    ],
+    [
+      0,
+      17,
+      39,
+      0,
+      0,
+      4
+    ],
+    [
+      0,
+      8,
+      0,
+      59,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      23,
+      3
+    ],
+    [
+      0,
+      0,
+      24,
+      0,
+      3,
+      23
+    ]
+  ],
+  "test_cls_n": 353.0
+}
