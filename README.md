@@ -121,7 +121,8 @@ air-quality-hackathon/
 │   └── reports/                ← metrics + evaluation plots
 ├── docs/
 │   ├── DATA_SOURCES.md         ← full dataset provenance log
-│   └── FETCH_AND_RUN.md        ← step-by-step execution guide
+│   ├── FETCH_AND_RUN.md        ← step-by-step execution guide
+│   └── CODE_ARCHITECTURE.md    ← file-by-file code explanation + layout
 ├── scripts/
 │   ├── openaq_scan.py          ← worldwide OpenAQ station discovery (S3 scan)
 │   ├── openaq_select.py        ← merge scans + country-balanced selection
@@ -161,7 +162,9 @@ python src/visualization/map_cities.py
 # → output/world_city_predictions.html  (predicted city markers on world map)
 ```
 
-Full execution details are documented in **[docs/FETCH_AND_RUN.md](docs/FETCH_AND_RUN.md)**.
+Full execution details are documented in **[docs/FETCH_AND_RUN.md](docs/FETCH_AND_RUN.md)**;
+a file-by-file explanation of the code and source layout is in
+**[docs/CODE_ARCHITECTURE.md](docs/CODE_ARCHITECTURE.md)**.
 
 ---
 
