@@ -109,7 +109,8 @@ air-quality-hackathon/
 ├── src/
 │   ├── data/
 │   │   ├── preprocess.py       ← full preprocessing pipeline
-│   │   └── openaq_loader.py    ← OpenAQ station enrichment
+│   │   ├── openaq_loader.py    ← OpenAQ station enrichment
+│   │   └── smote_r.py          ← SMOTE-R (relevance-weighted regression SMOTE)
 │   ├── models/
 │   │   ├── base.py             ← shared dataset + metrics
 │   │   ├── lstm_cnn.py
@@ -135,6 +136,7 @@ air-quality-hackathon/
 │   ├── CODE_ARCHITECTURE.md     ← file-by-file code explanation + layout
 │   ├── MODEL_COMPARISON.md      ← 5-model accuracy vs efficiency benchmark
 │   ├── MODEL_MATH_AND_RUN.md    ← how to run + model math + code walkthrough
+│   ├── SMOTE_R.md               ← SMOTE-R description + how-to
 │   └── MATHEMATICAL_MODELING.md ← formal math of every model/algo/score
 ├── benchmarking/                ← parameter-sweep benchmark suite
 │   ├── run_sweep.py             ← 5 models × {seq_len} × {hidden} grid
@@ -168,6 +170,9 @@ python -m src.data.openaq_loader
 # 3. Train a model
 python src/train.py --dataset uci --model lstm_cnn --epochs 50 --seq_len 24
 
+# 3b. Same, with the SMOTE-R pass (rare/extreme AQI tail oversampling)
+python src/train.py --dataset uci --model lstm_cnn --epochs 50 --task regression --smote_r
+
 # 4. Evaluate
 python src/evaluate.py --checkpoint models/checkpoints/lstm_cnn.pt --dataset uci
 
@@ -184,6 +189,8 @@ python src/visualization/map_cities.py
 ```
 
 Full execution details are documented in **[docs/FETCH_AND_RUN.md](docs/FETCH_AND_RUN.md)**;
+the SMOTE-R oversampling pass is described in
+**[docs/SMOTE_R.md](docs/SMOTE_R.md)**;
 a file-by-file explanation of the code and source layout is in
 **[docs/CODE_ARCHITECTURE.md](docs/CODE_ARCHITECTURE.md)**; the formal
 mathematics behind every model, algorithm and score are in
@@ -205,6 +212,10 @@ Data Leakage Checks  (duplicates, suspicious correlations)
 Train / Test Split  (80:20)  or  10-fold Cross Validation
 ↓
 SMOTE Algorithm  (balancing on TRAINING data only)
+↓
+Optional Regression SMOTE  (--smote_reg: oversample rare/extreme targets, separate pass)
+↓
+Optional SMOTE-R  (--smote_r: relevance-weighted oversampling of the rare AQI tails)
 ↓
 Model Training  (one of 5 hybrid architectures)
 ↓

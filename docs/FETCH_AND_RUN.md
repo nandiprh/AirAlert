@@ -168,6 +168,14 @@ python src/train.py --dataset india --model cnn_bilstm --epochs 50 --seq_len 7
 # Train all five models on UCI (10-fold CV)
 python src/train.py --dataset uci --model all --cv10 --epochs 30 --seq_len 24
 
+# Add the separate regression-target SMOTE pass (rare/extreme AQI values)
+python src/train.py --dataset uci --model lstm_cnn --epochs 50 --task regression --smote_reg
+
+# Add the separate SMOTE-R pass (relevance-weighted oversampling of the rare AQI tails)
+python src/train.py --dataset uci --model lstm_cnn --epochs 50 --task regression --smote_r
+#   tuning: --smote_r_k 5 --smote_r_threshold 0.5 --smote_r_quantile 0.1 \
+#            --smote_r_over 1.0 --smote_r_under 0.0
+
 # Specific model options:
 #   lstm_cnn | cnn_bilstm | lstm_attention | transformer_lstm | convlstm_attention
 ```
@@ -176,8 +184,20 @@ Hyperparameters (CLI args):
 - `--dataset`: `uci` or `india`
 - `--model`: `lstm_cnn`, `cnn_bilstm`, `lstm_attention`, `transformer_lstm`, `convlstm_attention`, `all`
 - `--epochs`, `--batch_size`, `--lr`, `--seq_len`, `--hidden_size`, `--dropout`
-- `--cv10`: enable 10-fold cross-validation
-- `--smote`: enable SMOTE balancing (on training split only)
+- `--split_mode cv10`: enable 10-fold cross-validation
+- `--no_smote`: disable classification SMOTE balancing (on by default,
+  training split only)
+- `--smote_reg`: enable a **separate** SMOTE pass that oversamples rare
+  (extreme) regression targets; independent of `--no_smote` and off by default
+- `--smote_r`: enable a **separate** SMOTE-R pass (Torgo et al., 2013) that
+  oversamples the rare AQI tails using a relevance function on the target and
+  an inverse-distance-weighted target assignment; independent of the two
+  passes above and off by default
+  - `--smote_r_k` (default `5`): SMOTE-R neighbourhood size
+  - `--smote_r_threshold` (default `0.5`): relevance threshold `t_E`
+  - `--smote_r_quantile` (default `0.1`): tail width `q` of the relevance function
+  - `--smote_r_over` (default `1.0`): synthetic cases generated per rare case
+  - `--smote_r_under` (default `0.0`): fraction of normal cases under-sampled
 - `--train-frac`: train/test split ratio (default `0.8` = 80:20); SMOTE is
   applied to the 80% training split only
 - `--val-frac`: explicit validation fraction (default `0.0`, which carves a
@@ -247,7 +267,9 @@ python src/predict.py --model lstm_cnn --epochs 30 --seq_len 7
 #   --city Delhi        forecast only Delhi
 #   --model all         ensemble average across all 5 hybrid models
 #   --max-cities N      limit city count (dev runs)
-#   --no_smote          disable SMOTE balancing
+#   --no_smote          disable classification SMOTE balancing
+#   --smote_reg         enable separate rare-regression-target SMOTE
+#   --smote_r           enable separate SMOTE-R pass (relevance-weighted)
 
 # Draw the city-wise maps
 python src/visualization/map_cities.py
@@ -308,6 +330,7 @@ data/raw/                     ← raw downloaded files
 
 src/data/preprocess.py        ← loads + cleans all CSVs
 src/data/openaq_loader.py     ← OpenAQ station enrichment + country assignment
+src/data/smote_r.py           ← SMOTE-R (relevance-weighted regression SMOTE)
 src/models/*.py               ← 5 hybrid DL architectures (PyTorch)
 src/train.py                  ← train loop with SMOTE, CV, overfit detection
 src/evaluate.py               ← test evaluation + plots
@@ -327,6 +350,9 @@ models/reports/               ← metrics JSON + evaluation plots
 > Mathematical derivations (LSTM gates, CNN, attention, Transformer, SMOTE,
 > EPA/CPCB AQI, metrics, benchmark sensitivity/balance scores):
 > **[docs/MATHEMATICAL_MODELING.md](MATHEMATICAL_MODELING.md)**.
+>
+> SMOTE-R description + how-to:
+> **[docs/SMOTE_R.md](SMOTE_R.md)**.
 
 ---
 

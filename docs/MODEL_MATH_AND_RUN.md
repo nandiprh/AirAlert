@@ -51,6 +51,22 @@ Cross-validation (10-fold time-series) instead of holdout:
 .venv/bin/python src/train.py --dataset india --model all --split_mode cv10 --seq_len 7
 ```
 
+Separate regression-target SMOTE pass (oversamples rare/extreme targets):
+
+```bash
+.venv/bin/python src/train.py --dataset uci --model lstm_cnn --task regression --smote_reg
+```
+
+SMOTE-R pass (relevance-weighted oversampling of the rare AQI tails):
+
+```bash
+.venv/bin/python src/train.py --dataset uci --model lstm_cnn --task regression --smote_r
+# tuning: --smote_r_k 5 --smote_r_threshold 0.5 --smote_r_quantile 0.1 \
+#          --smote_r_over 1.0 --smote_r_under 0.0
+```
+
+Full description + how-to: **[docs/SMOTE_R.md](SMOTE_R.md)**.
+
 Outputs: `models/checkpoints/*.pt`, `models/reports/train_*.json` +
 `*_history.png`.
 
@@ -146,7 +162,7 @@ the **training partition only** — type-2 leakage prevention):
 z = (x − μ_train) / σ_train
 ```
 
-`train.py:286-291` fits `StandardScaler` on `X_train` / `y_train`, applies
+`train.py:290-297` fits `StandardScaler` on `X_train` / `y_train`, applies
 to every split (`apply_normalizer`), and stores the scalers in the
 checkpoint so forecasts can invert the transform.
 
@@ -161,8 +177,77 @@ interpolation between `z_i` and a randomly chosen k-NN `z_j`:
 z_new = z_i + λ (z_j − z_i),    λ ~ U(0, 1)
 ```
 
-Applied **only to training windows** (`train.py:329`), so the classifier
+Applied **only to training windows** (`train.py:333`), so the classifier
 no longer collapses onto the dominant AQI bucket.
+
+#### 2.3.1 Separate regression-target SMOTE (`--smote_reg`)
+
+`apply_smote` only runs for the **classification** task. The regression
+target is reframed as its own, independent binary problem in
+`apply_smote_regression` (`train.py:374`), applied when `--smote_reg` is
+passed and a regression head is enabled. Targets at or above the
+`rare_quantile` (default `0.9`) are labelled "rare"; SMOTE then generates
+synthetic windows between each rare window and its k-NN, with `y_reg`
+appended as an extra column so the synthetic target interpolates too:
+
+```
+z_new = z_i + λ (z_j − z_i),    λ ~ U(0, 1),    z = [flat_window, y_reg]
+```
+
+If classification labels are present they are propagated to synthetic
+windows by nearest-neighbour label copy, so all three arrays stay aligned.
+This pass does **not** alter `apply_smote`; when both run (task `both` with
+`--smote_reg`) they execute as two sequential, independent passes.
+
+#### 2.3.2 SMOTE-R (`--smote_r`, separate implementation)
+
+A third, fully independent pass: **SMOTE-R** (Torgo et al., 2013), written
+from scratch in `src/data/smote_r.py` (numpy + scikit-learn only — no
+`imbalanced-learn`) and enabled with `--smote_r`. It keeps the target
+**continuous** and adds what the two passes above lack: a *relevance
+function* on the target and an *inverse-distance-weighted target
+assignment*.
+
+**Relevance function.** `φ(y) ∈ [0,1]` is defined on the mid-rank quantile
+position `p_i` of `y_i` and interpolated linearly between control points
+(tail width `q`, default `0.1`):
+
+| p | 0 | q/2 | q | 1−q | 1−q/2 | 1 |
+|---|---|-----|---|-----|-------|---|
+| φ | 1 | 0.5 | 0 | 0 | 0.5 | 1 |
+
+The rare set and the relevance threshold `t_E` (default `0.5`):
+
+```
+D_r = { i : φ(y_i) ≥ t_E }        # defaults → bottom 10 % ∪ top 10 %
+```
+
+**Two tails.** `D_r` is split at the median of its own targets into
+`D_r^high` / `D_r^low`; synthetic cases are generated inside each group so
+each tail keeps its spatial coherence.
+
+**Interpolation + target assignment.** For a case `c` of a group and a
+random k-NN `x` of the *same* group:
+
+```
+new = c + λ·(x − c),                    λ ~ U(0,1)
+d₁  = ‖new − c‖,  d₂ = ‖new − x‖
+y_new = (d₂·y_c + d₁·y_x) / (d₁ + d₂)
+```
+
+The closer seed gets the larger weight, so a synthetic window next to a
+severe-pollution window keeps a severe target. On the segment this reduces
+to `y_new = (1 − λ)y_c + λ y_x`; the distance form is kept because it is
+metric-agnostic and never overshoots the seed targets. The rule is
+affine-invariant in `y`, so it works directly on the z-scored AQI target.
+
+**Under-sampling (optional).** `--smote_r_under` (default `0`) drops a
+fraction of the normal cases `D_i` at random.
+
+The pass runs on **training windows only**; classification labels of the
+synthetic windows are copied from the parent case. Code:
+`src/data/smote_r.py` (`relevance_extremes`, `smote_r`, `apply_smote_r`).
+Full description + how-to: **[docs/SMOTE_R.md](SMOTE_R.md)**.
 
 ### 2.4 LSTM cell
 
@@ -283,7 +368,7 @@ F1        = macro-averaged 2·P·R / (P+R) over AQI buckets
 
 All computed on **unscaled** AQI values (`inverse_normalize_target`).
 
-### 2.11 Overfit/underfit auto-correction (`detect_issue`, `train.py:451`)
+### 2.11 Overfit/underfit auto-correction (`detect_issue`, `train.py:533`)
 
 With train loss `ℓ_t`, val loss history `ℓ_v`, best val `ℓ_v*`:
 
@@ -303,22 +388,24 @@ best-val-round snapshot, and writes it to the checkpoint.
 
 ## Part 3 — Code Walkthrough
 
-### 3.1 `src/train.py` — the orchestrator (872 lines)
+### 3.1 `src/train.py` — the orchestrator (1002 lines)
 
 | Snippet | What happens |
 |---------|--------------|
 | `UCI_FEATURES` / `INDIA_FEATURES` (:62/:79) | Feature column lists for each dataset. |
 | `load_uci_data` / `load_india_data` (:112/:146) | Read processed CSV (raw fallback), optional `city` filter; India also returns the AQI target + `AQI_Bucket` class. |
 | `preprocess_dataset` (:187) | **(a)** split the *raw series* into train/val/test (`n_test = n(1−0.8)`); `val=0.0` carves ~10% from the train tail; **(b)** build sliding windows per split; **(c)** fit `StandardScaler` on train only, transform all; returns `(X, y_reg, y_cls)` + scalers + `cls_map`. |
-| `apply_smote` (:329) | Flatten train windows → SMOTE k-NN interpolation incl. appended `y_reg` → reshape back to `(B, T, F)`. |
-| `Config(dict)` (:438) | Hyperparameter bag with dotted access (`cfg.dropout`). |
-| `detect_issue` (:451) | The rules from §2.11; returns a corrected config copy. |
-| `train_one_epoch` (:394) | Forward → two losses → backward → Adam step. |
-| `evaluate_loader` (:411) | val/test forward pass; returns raw y_true/y_pred in **scaled** space. |
-| `to_split_metrics` (:643) | Inverts the target scaler, then computes §2.10 metrics. |
-| `run_training` (:501) | Build model → loop (early stop, LR plateau) → restore best → `detect_issue`+retrain → save checkpoint (state_dict, config, metadata, scalers, cls_map) → history plot. |
-| `run_cv` (:679) | `TimeSeriesSplit(10)` surrogate — 10-fold, same build/scale/metrics. |
-| `main` (:799) | CLI glue written in Part 1. |
+| `apply_smote` (:333) | Flatten train windows → SMOTE k-NN interpolation incl. appended `y_reg` → reshape back to `(B, T, F)`. Classification buckets only. |
+| `apply_smote_regression` (:374) | Separate, opt-in (`--smote_reg`) SMOTE pass for rare/extreme regression targets; appends `y_reg`, propagates `y_cls` by nearest-neighbour copy. Independent of `apply_smote`. |
+| `apply_smote_r` (`src/data/smote_r.py:288`) | Third, independent pass (`--smote_r`): relevance function `φ(y)`, extreme-tail split, inverse-distance-weighted target assignment. numpy + sklearn only. |
+| `Config(dict)` (:516) | Hyperparameter bag with dotted access (`cfg.dropout`). |
+| `detect_issue` (:529) | The rules from §2.11; returns a corrected config copy. |
+| `train_one_epoch` (:472) | Forward → two losses → backward → Adam step. |
+| `evaluate_loader` (:489) | val/test forward pass; returns raw y_true/y_pred in **scaled** space. |
+| `to_split_metrics` (:730) | Inverts the target scaler, then computes §2.10 metrics. |
+| `run_training` (:579) | Build model → loop (early stop, LR plateau) → restore best → `detect_issue`+retrain → save checkpoint (state_dict, config, metadata, scalers, cls_map) → history plot. |
+| `run_cv` (:766) | `TimeSeriesSplit(10)` surrogate — 10-fold, same build/scale/metrics. |
+| `main` (:888) | CLI glue written in Part 1. |
 
 ### 3.2 `src/models/` — the five architectures
 
@@ -403,6 +490,9 @@ verdict + charts).
   high-correlation leakage checks, `run_pipeline`.
 - `src/data/openaq_loader.py` — station summarization, S3 URL builder,
   `assign_country` via geopandas point-in-polygon.
+- `src/data/smote_r.py` — **SMOTE-R** (Torgo et al., 2013): relevance
+  function `φ(y)`, extreme-tail split, inverse-distance-weighted target
+  assignment; numpy + scikit-learn only (no `imbalanced-learn`).
 - `scripts/openaq_scan/select/fetch` — archive discovery, balanced
   country selection, prefetch (only `urllib` + User-Agent works on the
   bucket).
@@ -413,16 +503,18 @@ verdict + charts).
 
 | Concept | Formula | Code |
 |---------|---------|------|
-| Z-score | `z=(x−μ)/σ` | `src/models/base.py:74`, `train.py:286` |
-| Sliding window | `(x_{t−T+1},…,x_t)` | `train.py:187-303` |
-| SMOTE | `z_i+λ(z_j−z_i)` | `train.py:329` (`apply_smote`) |
+| Z-score | `z=(x−μ)/σ` | `src/models/base.py:74`, `train.py:290` |
+| Sliding window | `(x_{t−T+1},…,x_t)` | `train.py:191-326` |
+| SMOTE | `z_i+λ(z_j−z_i)` | `train.py:333` (`apply_smote`) |
+| SMOTE (regression) | `z_i+λ(z_j−z_i)`, rare-target bins | `train.py:374` (`apply_smote_regression`) |
+| SMOTE-R | `φ(y)≥t_E`, `y_new=(d₂y_c+d₁y_x)/(d₁+d₂)` | `src/data/smote_r.py:151` (`smote_r`) |
 | LSTM | §2.4 gates | `models/*.py` `nn.LSTM` |
 | Conv1d | §2.5 | `lstm_cnn.py:54`, `cnn_bilstm.py:47`, `convlstm_attention.py:49` |
 | Bahdanau | `Σα_t h_t` | `lstm_attention.py:71-96` |
 | Dot-product attn | `softmax(QKᵀ/√d)V` | `convlstm_attention.py:100-131` |
 | Positional encoding | sin/cos | `transformer_lstm.py:17-36` |
 | Multi-head attn | `Concat(heads)W_O` | `transformer_lstm.py:78-86` |
-| Multi-task loss | `MSE + γ·CE + λ₂‖θ‖²` | `train.py:374-393` |
-| Early stop / plateau | — | `train.py:576-594` |
-| Auto-correction | §2.11 | `train.py:451-489` |
+| Multi-task loss | `MSE + γ·CE + λ₂‖θ‖²` | `train.py:460-474` |
+| Early stop / plateau | — | `train.py:678-701` |
+| Auto-correction | §2.11 | `train.py:533-571` |
 | Metrics | RMSE/MAE/R²/F1 | `models/base.py` `compute_metrics` |

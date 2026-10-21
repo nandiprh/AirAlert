@@ -19,7 +19,7 @@ benchmark is reproducible with `scripts/benchmark_models.py`.
 | Window | `seq_len = 24` |
 | Tasks | both (regression → raw AQI, classification → 4 buckets) |
 | Seed | 42 (fully deterministic runs) |
-| SMOTE | enabled, **training windows only** |
+| SMOTE | enabled, **training windows only** (classification). Separate rare-target regression SMOTE available via `--smote_reg` and SMOTE-R via `--smote_r` (both off by default). |
 | Post-training | auto overfit/underfit correction (`detect_issue`) for all models |
 | Hardware | CPU (PyTorch 2.14, `torch.threads` default) |
 

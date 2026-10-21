@@ -119,6 +119,77 @@ target is interpolated **in ℓ2 sense** along with the features
 (`y_reg` stays consistent with the synthetic inputs). SMOTE is applied to
 **training windows only**.
 
+### 3.1 Regression-target SMOTE (separate pass)
+
+The pass above is driven by the **classification** buckets. For regression
+imbalance, a second, independent pass (`apply_smote_regression`, enabled
+with `--smote_reg`) treats rare/extreme targets as a minority class. With a
+relevance threshold `φ` (the `rare_quantile` quantile of `y_reg`):
+
+```
+rare(i) = 1  ⟺  y_reg,i ≥ φ
+```
+
+SMOTE oversamples the `rare` group, generating `z_new = z_i + λ(z_j − z_i)`
+between a rare window and one of its k-NN. As before `z` appends `y_reg`,
+so the synthetic target is interpolated; any classification labels are
+propagated to synthetic windows by nearest-neighbour label copy. The two
+passes are applied **separately** — `apply_smote` is never modified.
+
+### 3.2 SMOTE-R (separate pass, `--smote_r`)
+
+SMOTE-R (Torgo et al., 2013) keeps the target **continuous** and adds the
+two pieces the passes above lack: a *relevance function* on the target and a
+*distance-weighted target assignment*. It is implemented from scratch in
+`src/data/smote_r.py` (numpy + scikit-learn, no `imbalanced-learn`) and
+runs as a third, independent pass.
+
+**(a) Relevance function.** `φ(y) ∈ [0,1]` scores how extreme a target is.
+It is defined on the mid-rank quantile position `p_i` of `y_i` and
+interpolated linearly between the control points:
+
+| p | 0 | q/2 | q | 1−q | 1−q/2 | 1 |
+|---|---|-----|---|-----|-------|---|
+| φ | 1 | 0.5 | 0 | 0 | 0.5 | 1 |
+
+with tail width `q` (default `0.1`). The rare set and the relevance
+threshold `t_E` (default `0.5`) are
+
+```
+D_r = { i : φ(y_i) ≥ t_E }
+```
+
+so with the defaults `D_r` = bottom 10 % ∪ top 10 % of the training
+targets.
+
+**(b) Two extreme tails.** `D_r` is split at the median of its own targets
+into `D_r^high` and `D_r^low`; synthetic cases are generated inside each
+group so the spatial coherence of each tail is preserved.
+
+**(c) Interpolation + inverse-distance target.** For a case `c` of a group
+and a random k-NN `x` of the *same* group:
+
+```
+new = c + λ·(x − c),                    λ ~ U(0,1)
+d₁  = ‖new − c‖,  d₂ = ‖new − x‖
+y_new = (d₂·y_c + d₁·y_x) / (d₁ + d₂)
+```
+
+The closer seed gets the larger weight (inverse-distance weighting), so a
+synthetic point generated next to a severe window keeps a severe target.
+On the segment `new = c + λ(x − c)` this reduces to the convex combination
+`y_new = (1 − λ)y_c + λ y_x`; the distance form is kept because it stays
+correct for any distance metric and never overshoots the seed targets. The
+rule is affine-invariant in `y` (the weights are ratios of distances), so it
+works directly on the z-scored AQI target.
+
+**(d) Under-sampling (optional).** A fraction `r_under` of the normal cases
+`D_i` is dropped at random (`--smote_r_under`, default `0` = keep all).
+
+The pass runs on **training windows only**; classification labels of the
+synthetic windows are copied from the parent case. Full description and
+how-to: [`docs/SMOTE_R.md`](SMOTE_R.md).
+
 ---
 
 ## 4. The five architectures
@@ -326,9 +397,11 @@ RMSE would over-privilege a heavyweight architecture.
 
 | Concept | Formula | Code |
 |---------|---------|------|
-| Z-score | `z=(x−μ)/σ` | `src/models/base.py` `fit_normalizer`, `src/train.py:286` |
-| Windows | `(x_{t−T+1},…,x_t)` | `src/train.py:187` `preprocess_dataset` |
-| SMOTE | `z_i+λ(z_j−z_i)` | `src/train.py:329` `apply_smote` |
+| Z-score | `z=(x−μ)/σ` | `src/models/base.py` `fit_normalizer`, `src/train.py:290` |
+| Windows | `(x_{t−T+1},…,x_t)` | `src/train.py:191` `preprocess_dataset` |
+| SMOTE | `z_i+λ(z_j−z_i)` | `src/train.py:333` `apply_smote` |
+| SMOTE (regression) | `rare=1[y_reg≥φ]` + §3.1 | `src/train.py:374` `apply_smote_regression` |
+| SMOTE-R | `φ(y)≥t_E`, `y_new=(d₂y_c+d₁y_x)/(d₁+d₂)` + §3.2 | `src/data/smote_r.py:151` `smote_r` |
 | EPA AQI | piecewise linear | `map_global.py:99` `pm25_to_aqi` |
 | Buckets | `≥` thresholds | `aqi_spec.py:73` `aqi_bucket_name` |
 | LSTM gates | §4.1 | `nn.LSTM` in every hybrid |
@@ -338,7 +411,7 @@ RMSE would over-privilege a heavyweight architecture.
 | Positional encoding | sin/cos | `transformer_lstm.py:17` |
 | Multi-head attn | `Concat(heads)W_O` | `transformer_lstm.py:78` |
 | Multi-task loss | `MSE+γ·CE+λ₂‖θ‖²` | `src/train.py` train loop |
-| Correction rules | §5.1 | `src/train.py:451` `detect_issue` |
+| Correction rules | §5.1 | `src/train.py:533` `detect_issue` |
 | Metrics | RMSE/MAE/R²/F1 | `src/models/base.py` `compute_metrics` |
 | Sensitivity | `RMSE(high)−RMSE(low)` | `benchmarking/compare_and_report.py` |
 | Balance score | `0.5·ṟmse+0.3·p̂arams+0.2·t̂rain` | `benchmarking/compare_and_report.py` |

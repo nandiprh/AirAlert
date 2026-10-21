@@ -6,6 +6,9 @@ Pipeline (mirrors README methodology):
   3. Train/Test split (80:20 by default, val carved from train tail unless
      --val-frac is set) OR 10-fold time-series CV.
   4. SMOTE oversampling on TRAINING data only (classification imbalance).
+     Optional, independent extra passes: `--smote_reg` (rare regression
+     targets) and `--smote_r` (SMOTE-R, relevance-weighted regression
+     oversampling).
   5. Train each requested model.
   6. Overfit/underfit detection and automatic correction (dropout bump,
      early stopping, LR scheduling, capacity bump) + retrain.
@@ -38,6 +41,7 @@ import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
+from src.data.smote_r import apply_smote_r
 from src.models import (
     MODEL_REGISTRY,
     SequenceDataset,
@@ -367,6 +371,84 @@ def apply_smote(X_train: np.ndarray, y_cls_train: np.ndarray, y_reg_train: np.nd
     )
 
 
+def apply_smote_regression(X_train: np.ndarray, y_reg_train: np.ndarray,
+                           seq_len: int, n_features: int,
+                           y_cls_train: np.ndarray | None = None,
+                           random_state: int = 42, rare_quantile: float = 0.9,
+                           k_neighbors: int = 5):
+    """Oversample rare (extreme) regression targets using SMOTE.
+
+    Regression imbalance is reframed as a binary problem: targets at or
+    above the ``rare_quantile`` quantile are labelled "rare", and SMOTE
+    then synthesises new windows along the segment between each rare
+    sample and its feature-space neighbours. ``y_reg`` is appended as an
+    extra column so the interpolated target stays consistent with every
+    synthetic window.
+
+    If classification labels are supplied they are propagated to the
+    synthetic windows by copying the label of the nearest original window,
+    keeping ``y_cls`` aligned with ``X``/``y_reg``.
+
+    This pass is fully independent of :func:`apply_smote` (which balances
+    the AQI classification buckets) and does not modify it. ``rare_quantile``
+    must be > 0.5 so the rare group is the minority SMOTE oversamples.
+
+    Returns ``(X_res, y_reg_res, y_cls_res)``; ``y_cls_res`` is ``None``
+    when ``y_cls_train`` is ``None``.
+    """
+    try:
+        from imblearn.over_sampling import SMOTE
+    except ImportError:
+        return X_train, y_reg_train, y_cls_train
+
+    y_reg_train = np.asarray(y_reg_train, dtype=np.float64)
+    n_samples = X_train.shape[0]
+    if n_samples < 3 or y_reg_train.size != n_samples:
+        return X_train, y_reg_train, y_cls_train
+
+    rare_quantile = min(max(float(rare_quantile), 0.5), 0.99)
+    threshold = float(np.quantile(y_reg_train, rare_quantile))
+    rare = (y_reg_train >= threshold).astype(np.int64)
+    counts = pd.Series(rare).value_counts()
+    if len(counts) < 2 or counts.min() < 2:
+        print("[smote-reg] too few rare/normal samples, skipping")
+        return X_train, y_reg_train, y_cls_train
+
+    n_neighbors = max(1, min(int(k_neighbors), int(counts.min()) - 1))
+
+    X_flat = X_train.reshape(n_samples, -1)
+    Z = np.hstack([X_flat, y_reg_train.reshape(-1, 1)])
+    sm = SMOTE(random_state=random_state, k_neighbors=n_neighbors)
+    try:
+        Z_r, _ = sm.fit_resample(Z, rare)
+    except Exception as exc:  # pragma: no cover
+        print(f"[smote-reg] failed ({exc}); skipping")
+        return X_train, y_reg_train, y_cls_train
+
+    X_r = Z_r[:, :X_flat.shape[1]]
+    y_reg_r = Z_r[:, X_flat.shape[1]].ravel().astype(np.float32)
+
+    y_cls_r = None
+    if y_cls_train is not None:
+        y_cls_train = np.asarray(y_cls_train)
+        if len(Z_r) > n_samples:
+            from sklearn.neighbors import NearestNeighbors
+
+            nn = NearestNeighbors(n_neighbors=1).fit(Z)
+            _, idx = nn.kneighbors(Z_r[n_samples:])
+            y_cls_r = np.concatenate([y_cls_train, y_cls_train[idx.ravel()]])
+        else:
+            y_cls_r = y_cls_train
+
+    print(f"[smote-reg] training windows {n_samples} -> {len(Z_r)} "
+          f"(rare >= {threshold:.4f})")
+    return (
+        X_r.reshape(-1, seq_len, n_features).astype(np.float32),
+        y_reg_r,
+        y_cls_r,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Loss / training helpers
 # ---------------------------------------------------------------------------
@@ -513,6 +595,31 @@ def run_training(model_name, data, cfg, checkpoint_path, seed=42,
         X_train, y_cls_train, y_reg_train = apply_smote(
             X_train, np.asarray(y_cls_train, dtype=np.int64), y_reg_train,
             meta["seq_len"], meta["input_size"], seed,
+        )
+
+    # Separate, opt-in regression-target SMOTE pass (independent of the
+    # classification SMOTE above).
+    if use_reg and cfg.get("smote_reg"):
+        X_train, y_reg_train, y_cls_train = apply_smote_regression(
+            X_train, y_reg_train, meta["seq_len"], meta["input_size"],
+            y_cls_train=np.asarray(y_cls_train, dtype=np.int64) if use_cls else None,
+            random_state=seed,
+        )
+
+    # Separate, opt-in SMOTE-R pass (Torgo et al. 2013): relevance-weighted
+    # oversampling of the rare/extreme regression targets, with an
+    # inverse-distance-weighted target assignment. Independent of the two
+    # passes above.
+    if use_reg and cfg.get("smote_r"):
+        X_train, y_reg_train, y_cls_train = apply_smote_r(
+            X_train, y_reg_train, meta["seq_len"], meta["input_size"],
+            y_cls_train=np.asarray(y_cls_train, dtype=np.int64) if use_cls else None,
+            k_neighbors=int(cfg.get("smote_r_k", 5)),
+            threshold=float(cfg.get("smote_r_threshold", 0.5)),
+            rare_quantile=float(cfg.get("smote_r_quantile", 0.1)),
+            over_sampling_ratio=float(cfg.get("smote_r_over", 1.0)),
+            under_sampling_ratio=float(cfg.get("smote_r_under", 0.0)),
+            random_state=seed,
         )
 
     train_ds = SequenceDataset(
@@ -782,6 +889,25 @@ def parse_args():
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--no_smote", action="store_true",
                    help="disable SMOTE oversampling")
+    p.add_argument("--smote_reg", action="store_true",
+                   help="enable separate SMOTE for rare regression targets")
+    p.add_argument("--smote_r", action="store_true",
+                   help="enable separate SMOTE-R pass (relevance-weighted "
+                        "oversampling of rare regression targets)")
+    p.add_argument("--smote_r_k", dest="smote_r_k", type=int, default=5,
+                   help="SMOTE-R neighbourhood size (default 5)")
+    p.add_argument("--smote_r_threshold", dest="smote_r_threshold", type=float,
+                   default=0.5,
+                   help="SMOTE-R relevance threshold t_E (default 0.5)")
+    p.add_argument("--smote_r_quantile", dest="smote_r_quantile", type=float,
+                   default=0.1,
+                   help="SMOTE-R tail width q of the relevance function "
+                        "(default 0.1)")
+    p.add_argument("--smote_r_over", dest="smote_r_over", type=float, default=1.0,
+                   help="SMOTE-R synthetic cases per rare case (default 1.0)")
+    p.add_argument("--smote_r_under", dest="smote_r_under", type=float, default=0.0,
+                   help="SMOTE-R fraction of normal cases to under-sample "
+                        "(default 0.0 = keep all)")
     p.add_argument("--patience", type=int, default=12)
     p.add_argument("--quiet", action="store_true")
     return p.parse_args()
@@ -811,6 +937,11 @@ def main():
         early_stopping=True, lr_schedule="plateau", city=args.city,
         weight_decay=1e-5, overfit_budget=8, underfit_budget=8,
         max_lr_reductions=2, quiet=args.quiet, no_smote=args.no_smote,
+        smote_reg=args.smote_reg,
+        smote_r=args.smote_r, smote_r_k=args.smote_r_k,
+        smote_r_threshold=args.smote_r_threshold,
+        smote_r_quantile=args.smote_r_quantile,
+        smote_r_over=args.smote_r_over, smote_r_under=args.smote_r_under,
     )
     models = list(MODEL_REGISTRY) if args.model == "all" else [args.model]
 

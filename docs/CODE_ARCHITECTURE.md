@@ -10,6 +10,8 @@ Related docs:
   models + which to pick for deployment.
 - **docs/MODEL_MATH_AND_RUN.md** — how to run everything, the full mathematics
   (LSTM/CNN/attention/Transformer/loss/metrics) and a code-level walkthrough.
+- **docs/SMOTE_R.md** — the SMOTE-R pass: relevance function, inverse-distance
+  target assignment, CLI flags and tuning guide.
 
 ---
 
@@ -92,7 +94,8 @@ air-quality-hackathon/
 │   ├── __init__.py
 │   ├── data/
 │   │   ├── preprocess.py              # cleaning + leakage checks
-│   │   └── openaq_loader.py           # OpenAQ station enrichment
+│   │   ├── openaq_loader.py           # OpenAQ station enrichment
+│   │   └── smote_r.py                 # SMOTE-R (regression oversampling)
 │   ├── models/
 │   │   ├── __init__.py                # MODEL_REGISTRY + build_model()
 │   │   ├── base.py                    # dataset, metrics, scaling, seeds
@@ -176,6 +179,23 @@ Turns the S3 scan output into a station table with country labels.
 | `fetch_location_summary(station)` | Reduce a station's measurements to a PM2.5/PM10/NO2 summary row. |
 | `assign_country(stations, world)` | **Point-in-polygon** via geopandas: assign ISO3 + country name for each station. |
 | `main(geojson_path)` | Runs load → summarize → assign countries → save `openaq_stations.csv`. |
+
+### `src/data/smote_r.py` — SMOTE-R (regression oversampling)
+
+A standalone implementation of **SMOTE-R** (Torgo et al., 2013) — no
+`imbalanced-learn` dependency, so it is independent of the two SMOTE passes
+in `src/train.py`.
+
+| Function | Purpose |
+|----------|---------|
+| `relevance_extremes(y, rare_quantile)` | Piecewise-linear relevance curve `φ(y) ∈ [0,1]` over the target quantiles (1.0 at the tails → 0.0 in the middle). |
+| `_midrank_quantiles(y)` | Mid-rank quantile position of every target (ties share the score). |
+| `smote_r(X, y, ...)` | Core algorithm: rare set `D_r = {i : φ(y_i) ≥ t_E}` → split into high/low tails → SMOTE interpolation inside each tail → **inverse-distance-weighted** target `y_new = (d₂·y_c + d₁·y_x)/(d₁+d₂)`. Returns a `SmoteRResult` (arrays + parent index + synthetic mask + stats). |
+| `apply_smote_r(X_train, y_reg, seq_len, n_features, ...)` | Window-aware wrapper used by `train.py`: flattens `(B, T, F)` windows, calls `smote_r`, reshapes back, copies `y_cls` from the parent case. |
+
+Flags: `--smote_r`, `--smote_r_k`, `--smote_r_threshold`,
+`--smote_r_quantile`, `--smote_r_over`, `--smote_r_under`.
+See **[docs/SMOTE_R.md](SMOTE_R.md)**.
 
 ### `scripts/openaq_*.py` — one-off bulk fetch
 
@@ -290,6 +310,8 @@ gradients), producing a context vector that is max-pooled across time.
 | Sliding windows | `preprocess_dataset` | Each sample = last `seq_len` pollutant days predicting the next AQI; split happens *before* windowing so no window crosses a partition boundary (temporal-leakage safety). |
 | 80:20 temporal split | `preprocess_dataset` | First 80% train, last 20% test; a small validation slice is carved from the train tail so early stopping never touches test. |
 | SMOTE | `apply_smote` | Synthetic minority-bucket oversampling on **training windows only** — the classifier no longer collapses onto the dominant bucket. |
+| Regression SMOTE | `apply_smote_regression` | Separate, opt-in (`--smote_reg`) pass that oversamples **rare/extreme regression targets** (`rare_quantile`), independent of the classification SMOTE. |
+| SMOTE-R | `apply_smote_r` (`src/data/smote_r.py`) | Third, opt-in (`--smote_r`) pass: **relevance function** `φ(y)` on the continuous target + **inverse-distance-weighted** target assignment (Torgo et al., 2013). numpy + scikit-learn only, no `imbalanced-learn`. |
 | Overfit/underfit correction | `detect_issue` | Overfit (val loss climbing far above train) → raise dropout + early stop; underfit (val flat) → raise `hidden_size` + epochs; then it retrains automatically. |
 | Adam + ReduceLROnPlateau | `run_training` | Adaptive-gradient optimizer; LR halves when validation loss plateaus. |
 | Early stopping | `run_training` | Keeps the best-weights snapshot; stops training after `patience` epochs without validation improvement. |
@@ -302,7 +324,7 @@ gradients), producing a context vector that is max-pooled across time.
 The largest module. Key flow:
 
 ```
-parse_args() ──▶ preprocess_dataset() ──▶ apply_smote() ──▶ run_training()
+parse_args() ─▶ preprocess_dataset() ─▶ apply_smote() ─▶ [apply_smote_regression()] ─▶ [apply_smote_r()] ─▶ run_training()
                                                         │
                           detect_issue() ◀── history ────┤
                           (overfit/underfit)             │
@@ -317,14 +339,16 @@ parse_args() ──▶ preprocess_dataset() ──▶ apply_smote() ──▶ ru
 | `load_uci_data` / `load_india_data` | 112/146 | Read processed CSV (fall back to raw); India optionally filters a single `city`; the global features/targets for India are PM2.5…O₃ pollutants → `AQI`, class label `AQI_Bucket`. |
 | `preprocess_dataset` | 187 | The central piece: builds **leakage-free windows**. |
 | `apply_smote` | 329 | Oversamples minority AQI buckets **on the training windows only**; `reg_target` is averaged for synthetic samples. |
-| `task_enabled` / `build_loss` | 374/378 | Decides regression/classification/both and the combined MSELoss + CrossEntropyLoss. |
-| `train_one_epoch` | 394 | Standard PyTorch training loop. |
-| `evaluate_loader` | 411 | Validation/test loop collecting unscaled predictions. |
-| `Config(dict)` | 438 | Dict subclass with attribute access; holds all hyperparameters. |
-| `detect_issue` | 451 | Overfit rule → raise dropout; underfit rule → raise `hidden_size`/epochs. |
-| `run_training` | 501 | Full loop: build model → Adam + ReduceLROnPlateau → early stop → restore best weights → auto-correction retrain → save `.pt` checkpoint → history plot. |
-| `run_cv` | 679 | 10-fold TimeSeriesSplit alternative. |
-| `parse_args` / `main` | 761/799 | CLI entry point (see below). |
+| `apply_smote_regression` | 374 | Separate opt-in (`--smote_reg`) pass oversampling rare/extreme regression targets; propagates `y_cls` by nearest-neighbour label copy. Independent of `apply_smote`. |
+| `apply_smote_r` | `src/data/smote_r.py:288` | Third, opt-in (`--smote_r`) pass: relevance-weighted oversampling of the rare AQI tails with an inverse-distance-weighted target; `y_cls` copied from the parent case. |
+| `task_enabled` / `build_loss` | 452/456 | Decides regression/classification/both and the combined MSELoss + CrossEntropyLoss. |
+| `train_one_epoch` | 472 | Standard PyTorch training loop. |
+| `evaluate_loader` | 489 | Validation/test loop collecting unscaled predictions. |
+| `Config(dict)` | 516 | Dict subclass with attribute access; holds all hyperparameters. |
+| `detect_issue` | 529 | Overfit rule → raise dropout; underfit rule → raise `hidden_size`/epochs. |
+| `run_training` | 579 | Full loop: build model → Adam + ReduceLROnPlateau → early stop → restore best weights → auto-correction retrain → save `.pt` checkpoint → history plot. |
+| `run_cv` | 766 | 10-fold TimeSeriesSplit alternative. |
+| `parse_args` / `main` | 848/888 | CLI entry point (see below). |
 
 ### The 80:20 split (no temporal leakage)
 
@@ -347,7 +371,10 @@ python src/train.py --dataset uci|india --model [5 hybrids|all]
                     --task both|regression|classification
                     --split_mode holdout|cv10
                     --train-frac 0.8 --val-frac 0.0
-                    --city <name> --seed 42 [--no_smote] [--quiet]
+                    --city <name> --seed 42 [--no_smote] [--smote_reg]
+                    [--smote_r --smote_r_k 5 --smote_r_threshold 0.5
+                     --smote_r_quantile 0.1 --smote_r_over 1.0 --smote_r_under 0.0]
+                    [--quiet]
 ```
 
 Artifacts: checkpoints in `models/checkpoints/{model}_{dataset}_{task}_s{N}.pt`,
@@ -382,7 +409,7 @@ Trains one model **per Indian city** and predicts the next-day AQI.
   `seq_len` rows + the last observed date.
 - `run_city` — per city:
   1. `preprocess_dataset(dataset="india", city=city, train_frac=0.8, val_frac=0.0)`
-  2. `run_training` (SMOTE on train only, overfit/underfit auto-correction)
+  2. `run_training` (SMOTE on train only — plus optional `--smote_reg` and `--smote_r` regression passes, overfit/underfit auto-correction)
   3. scale the final window with the training `feature_scaler`
   4. `model(window)` → inverse-scale `reg_scaler` → predicted AQI
   5. map to CPCB bucket (`bucket_of` → `aqi_bucket_name` from `aqi_spec.py`)

@@ -2,7 +2,8 @@
 """City-wise AQI forecasting.
 
 For every Indian city with enough history, trains a hybrid model on an 80:20
-temporal split (SMOTE applied to the 80% training split only) and predicts the
+temporal split (SMOTE applied to the 80% training split only, optionally
+followed by the separate `--smote_r` SMOTE-R pass) and predicts the
 NEXT-DAY AQI. Results are saved to
 ``data/processed/predictions/city_predictions.csv`` for the map visualisations.
 
@@ -162,6 +163,17 @@ def main():
                     default="both")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--no_smote", action="store_true")
+    ap.add_argument("--smote_reg", action="store_true")
+    ap.add_argument("--smote_r", action="store_true",
+                    help="enable separate SMOTE-R pass (relevance-weighted "
+                         "oversampling of rare regression targets)")
+    ap.add_argument("--smote_r_k", dest="smote_r_k", type=int, default=5)
+    ap.add_argument("--smote_r_threshold", dest="smote_r_threshold", type=float,
+                    default=0.5)
+    ap.add_argument("--smote_r_quantile", dest="smote_r_quantile", type=float,
+                    default=0.1)
+    ap.add_argument("--smote_r_over", dest="smote_r_over", type=float, default=1.0)
+    ap.add_argument("--smote_r_under", dest="smote_r_under", type=float, default=0.0)
     args = ap.parse_args()
 
     deterministic_seed(args.seed)
@@ -182,6 +194,11 @@ def main():
         lr_schedule="plateau", weight_decay=1e-5,
         overfit_budget=8, underfit_budget=8, max_lr_reductions=2,
         quiet=True, no_smote=args.no_smote,
+        smote_reg=args.smote_reg,
+        smote_r=args.smote_r, smote_r_k=args.smote_r_k,
+        smote_r_threshold=args.smote_r_threshold,
+        smote_r_quantile=args.smote_r_quantile,
+        smote_r_over=args.smote_r_over, smote_r_under=args.smote_r_under,
     )
 
     resolved = resolve_many(cities)
