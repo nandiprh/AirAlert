@@ -483,7 +483,15 @@ data/seed, grid `{seq_len} × {hidden_size}`, one JSON log per run under
 (per-model tables, parameter-sensitivity deltas, cross-model ranking,
 verdict + charts).
 
-### 3.8 Data layer
+### 3.8 `benchmarking/benchmark_smote.py` — resampling strategy benchmark
+
+Controlled comparison of the SMOTE passes (same windows, scalers, models,
+epoch budget, seeds; only the resampling changes) reporting test metrics,
+**tail metrics** (RMSE/MAE on the top/bottom decile of the test targets) and
+**distribution fidelity** (KS distance resampled-train vs test targets).
+Results: `benchmarking/smote_comparison.md`.
+
+### 3.9 Data layer
 
 - `src/data/preprocess.py` — parsers (`load_uci` handles `;` decimal data),
   median imputation, CPCB bucket recomputation, duplicate-row +

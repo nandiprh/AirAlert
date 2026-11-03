@@ -141,6 +141,8 @@ air-quality-hackathon/
 ├── benchmarking/                ← parameter-sweep benchmark suite
 │   ├── run_sweep.py             ← 5 models × {seq_len} × {hidden} grid
 │   ├── compare_and_report.py    ← sensitivity analysis + comparison.md
+│   ├── benchmark_smote.py       ← SMOTE / SMOTE-R strategy comparison
+│   ├── smote_comparison.md      ← the resampling comparison write-up
 │   ├── comparison.md            ← the comparison write-up (latest run)
 │   ├── ranking_*.csv            ← all runs sorted by test RMSE
 │   ├── summary_*.json/.csv      ← flat roll-up of every run

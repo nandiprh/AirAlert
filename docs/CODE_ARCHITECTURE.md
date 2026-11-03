@@ -197,6 +197,35 @@ Flags: `--smote_r`, `--smote_r_k`, `--smote_r_threshold`,
 `--smote_r_quantile`, `--smote_r_over`, `--smote_r_under`.
 See **[docs/SMOTE_R.md](SMOTE_R.md)**.
 
+### `benchmarking/benchmark_smote.py` — resampling strategy comparison
+
+A controlled A/B benchmark of the oversampling passes: same windows,
+scalers, split, models, epoch budget and seeds — only the resampling
+strategy changes.
+
+| Arm | What it does |
+|-----|--------------|
+| `none` | no resampling |
+| `cls` | classification SMOTE (project default) |
+| `cls_reg` | classification SMOTE + `--smote_reg` |
+| `cls_smoter` | classification SMOTE + `--smote_r` |
+| `cls_reg_smoter` | all three passes |
+| `smoter` | SMOTE-R only |
+
+Besides the usual test metrics it reports **tail metrics** (RMSE/MAE on the
+top/bottom decile of the test targets — the rare days SMOTE-R targets) and
+**distribution fidelity** (KS distance between the resampled training
+targets and the untouched test targets, mass above the test P90).
+
+```
+.venv/bin/python benchmarking/benchmark_smote.py --dataset uci --seq-len 24 \
+    --epochs 20 --seeds 42 43 44 --models lstm_cnn cnn_bilstm transformer_lstm
+```
+
+Outputs: `benchmarking/results/smote/*.json` (one per run),
+`benchmarking/smote_summary_<stamp>.json/.csv`, `benchmarking/smote_comparison.md`
+and `benchmarking/charts/smote_*.png`.
+
 ### `scripts/openaq_*.py` — one-off bulk fetch
 
 - `openaq_scan.py` — paginate the public S3 archive

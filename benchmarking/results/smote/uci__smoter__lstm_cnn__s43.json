@@ -1,0 +1,126 @@
+{
+  "dataset": "uci",
+  "city": null,
+  "model": "lstm_cnn",
+  "arm": "smoter",
+  "arm_label": "SMOTE-R only",
+  "seed": 43,
+  "seq_len": 24,
+  "epochs_run": 20,
+  "corrections": 1,
+  "detection": "none",
+  "train_time_s": 30.33,
+  "resample": {
+    "n_start": 571,
+    "log": [
+      "[smote-r] training windows 571 -> 633 (rare=62, synthetic=62, t_E=0.5, q=0.1)"
+    ],
+    "after_smoter": 633,
+    "n_final": 633
+  },
+  "distribution": {
+    "ks_to_test": 0.08992501613154436,
+    "train_hi_decile_mass": 0.11374407582938388,
+    "test_hi_decile_mass": 0.1,
+    "train_lo_decile_mass": 0.1484992101105845,
+    "test_lo_decile_mass": 0.1,
+    "train_mean": 0.07683544484736607,
+    "test_mean": 0.11668943446646797,
+    "train_std": 1.1637183381076153,
+    "test_std": 1.0527711881978117,
+    "train_max": 4.371006965637207,
+    "test_max": 3.7013411052097034
+  },
+  "tails": {
+    "rmse_hi": 1.106389956621913,
+    "mae_hi": 0.8585315924367,
+    "n_hi": 15,
+    "rmse_lo": 0.7538265930977429,
+    "mae_lo": 0.5929855177800032,
+    "n_lo": 20,
+    "rmse_mid": 1.1277350975048568,
+    "mae_mid": 0.8386354924675127,
+    "n_mid": 107,
+    "hi_threshold": 4.389999999837297,
+    "lo_threshold": 0.7999999902304473
+  },
+  "rmse_hi": 1.106389956621913,
+  "mae_hi": 0.8585315924367,
+  "rmse_lo": 0.7538265930977429,
+  "rmse_mid": 1.1277350975048568,
+  "ks_to_test": 0.08992501613154436,
+  "train_hi_decile_mass": 0.11374407582938388,
+  "train_lo_decile_mass": 0.1484992101105845,
+  "n_train_final": 633,
+  "val_rmse": 1.244,
+  "val_mae": 0.9675,
+  "val_r2": 0.4413,
+  "val_n": 42.0,
+  "val_accuracy": 0.5476,
+  "val_precision": 0.5945,
+  "val_recall": 0.5476,
+  "val_f1": 0.5634,
+  "val_confusion_matrix": [
+    [
+      2,
+      1,
+      0,
+      0
+    ],
+    [
+      1,
+      0,
+      1,
+      0
+    ],
+    [
+      2,
+      4,
+      3,
+      4
+    ],
+    [
+      1,
+      0,
+      5,
+      18
+    ]
+  ],
+  "val_cls_n": 42.0,
+  "test_loss": 1.4151,
+  "test_rmse": 1.0806,
+  "test_mae": 0.8061,
+  "test_r2": 0.4167,
+  "test_n": 142.0,
+  "test_accuracy": 0.5634,
+  "test_precision": 0.5089,
+  "test_recall": 0.5634,
+  "test_f1": 0.5043,
+  "test_confusion_matrix": [
+    [
+      29,
+      1,
+      0,
+      0
+    ],
+    [
+      21,
+      3,
+      7,
+      1
+    ],
+    [
+      5,
+      6,
+      9,
+      14
+    ],
+    [
+      1,
+      0,
+      6,
+      39
+    ]
+  ],
+  "test_cls_n": 142.0
+}

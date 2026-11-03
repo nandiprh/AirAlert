@@ -318,6 +318,31 @@ else "Station {id}".
 
 ---
 
+## 7b. Benchmarking the Resampling Strategies
+
+`benchmarking/benchmark_smote.py` compares the SMOTE passes head-to-head on
+identical windows/scalers/models/seeds — only the resampling strategy
+changes:
+
+```bash
+source .venv/bin/activate
+
+# 6 arms × 3 models × 3 seeds on UCI
+.venv/bin/python benchmarking/benchmark_smote.py --dataset uci --seq-len 24 \
+    --epochs 20 --seeds 42 43 44 --models lstm_cnn cnn_bilstm transformer_lstm
+
+# arms: none | cls | cls_reg | cls_smoter | cls_reg_smoter | smoter
+# --dataset india --city Delhi    same benchmark on the city AQI data
+```
+
+Outputs:
+- `benchmarking/results/smote/<arm>__<model>__s<seed>.json` — one record per run
+- `benchmarking/smote_summary_<stamp>.json` / `.csv` — flat roll-up
+- `benchmarking/smote_comparison.md` — the comparison write-up (tables)
+- `benchmarking/charts/smote_*.png` — RMSE / tail-RMSE / KS charts
+
+---
+
 ## 8. Pipeline Overview
 
 ```
@@ -341,6 +366,7 @@ src/visualization/location_table.py ← hardcoded city → coordinate resolution
 src/visualization/aqi_spec.py ← shared AQI buckets/colors + health legend
 benchmarking/run_sweep.py      ← parameter-sweep benchmarks → results/*.json
 benchmarking/compare_and_report.py ← sensitivity / comparison → comparison.md
+benchmarking/benchmark_smote.py  ← SMOTE / SMOTE-R strategy comparison
 
 output/                       ← map HTML + PNG files
 models/checkpoints/           ← saved .pt model files

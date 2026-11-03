@@ -1,0 +1,123 @@
+{
+  "dataset": "uci",
+  "city": null,
+  "model": "cnn_bilstm",
+  "arm": "none",
+  "arm_label": "no resampling",
+  "seed": 44,
+  "seq_len": 24,
+  "epochs_run": 20,
+  "corrections": 1,
+  "detection": "none",
+  "train_time_s": 19.51,
+  "resample": {
+    "n_start": 571,
+    "log": [],
+    "n_final": 571
+  },
+  "distribution": {
+    "ks_to_test": 0.09429959793789,
+    "train_hi_decile_mass": 0.07705779334500876,
+    "test_hi_decile_mass": 0.1,
+    "train_lo_decile_mass": 0.1190893169877408,
+    "test_lo_decile_mass": 0.1,
+    "train_mean": -3.235395994704484e-16,
+    "test_mean": 0.11668943446646797,
+    "train_std": 1.0,
+    "test_std": 1.0527711881978117,
+    "train_max": 4.371007065626287,
+    "test_max": 3.7013411052097034
+  },
+  "tails": {
+    "rmse_hi": 1.319589804683331,
+    "mae_hi": 1.0772585397997034,
+    "n_hi": 15,
+    "rmse_lo": 0.24580818116606046,
+    "mae_lo": 0.19854924976608185,
+    "n_lo": 20,
+    "rmse_mid": 0.7830537535415246,
+    "mae_mid": 0.5861154519130987,
+    "n_mid": 107,
+    "hi_threshold": 4.389999999837297,
+    "lo_threshold": 0.7999999902304473
+  },
+  "rmse_hi": 1.319589804683331,
+  "mae_hi": 1.0772585397997034,
+  "rmse_lo": 0.24580818116606046,
+  "rmse_mid": 0.7830537535415246,
+  "ks_to_test": 0.09429959793789,
+  "train_hi_decile_mass": 0.07705779334500876,
+  "train_lo_decile_mass": 0.1190893169877408,
+  "n_train_final": 571,
+  "val_rmse": 1.1655,
+  "val_mae": 0.8586,
+  "val_r2": 0.5096,
+  "val_n": 42.0,
+  "val_accuracy": 0.7143,
+  "val_precision": 0.8568,
+  "val_recall": 0.7143,
+  "val_f1": 0.7646,
+  "val_confusion_matrix": [
+    [
+      1,
+      2,
+      0,
+      0
+    ],
+    [
+      1,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      5,
+      7,
+      1
+    ],
+    [
+      0,
+      2,
+      1,
+      21
+    ]
+  ],
+  "val_cls_n": 42.0,
+  "test_loss": 1.0825,
+  "test_rmse": 0.809,
+  "test_mae": 0.5834,
+  "test_r2": 0.6731,
+  "test_n": 142.0,
+  "test_accuracy": 0.6408,
+  "test_precision": 0.6144,
+  "test_recall": 0.6408,
+  "test_f1": 0.6046,
+  "test_confusion_matrix": [
+    [
+      28,
+      1,
+      1,
+      0
+    ],
+    [
+      12,
+      12,
+      6,
+      2
+    ],
+    [
+      3,
+      6,
+      9,
+      16
+    ],
+    [
+      0,
+      0,
+      4,
+      42
+    ]
+  ],
+  "test_cls_n": 142.0
+}
