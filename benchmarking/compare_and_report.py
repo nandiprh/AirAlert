@@ -44,11 +44,14 @@ EFF = ["params", "train_time_s", "inference_ms_per_batch", "checkpoint_mb"]
 
 def load_results():
     runs = []
+    required = {"dataset", "model", "cfgid", "params", "test_rmse"}
     for path in glob.glob(str(RESULT_DIR / "*" / "*.json")):
         with open(path) as f:
             run = json.load(f)
-        if "test_rmse" not in run:
-            continue  # failed / incomplete
+        # Only the parameter-sweep runs have the full schema; skip the
+        # smote/ and generalization/ sub-suites, which have their own reports.
+        if not required.issubset(run):
+            continue
         runs.append(run)
     return runs
 
@@ -227,6 +230,47 @@ def main(specific_ts: str | None = None):
             out.append(f"- **Best balance (accuracy vs cost)**: `{bal_win}` "
                        f"(grid `{e['cfgid']}`, RMSE {e['test_rmse']:.3f}).")
 
+        head("5. Overfitting / underfitting diagnostics")
+        diag_runs = [r for r in runs if r["dataset"] == ds
+                     and ("train_rmse" in r or r.get("diagnosis"))]
+        if not diag_runs:
+            out.append("_No generalisation diagnostics in these result files; "
+                       "re-run `run_sweep.py` with the updated trainer._\n")
+        else:
+            rows = []
+            for r in sorted(diag_runs, key=lambda x: (x["model"], x["cfgid"])):
+                tr = r.get("train_rmse")
+                va = r.get("val_rmse")
+                te = r.get("test_rmse")
+                gap = (float(va) - float(tr)
+                       if tr is not None and va is not None else None)
+                signals = r.get("diagnosis_signals", {})
+                rows.append([
+                    r["model"], r["cfgid"],
+                    f"{tr:.3f}" if tr is not None else "--",
+                    f"{va:.3f}" if va is not None else "--",
+                    f"{te:.3f}" if te is not None else "--",
+                    f"{gap:+.3f}" if gap is not None else "--",
+                    r.get("diagnosis") or r.get("detection", "--"),
+                    signals.get("best_epoch", r.get("best_epoch", "--")),
+                    r.get("epochs", "--"),
+                ])
+            out.append(md_table(
+                ["model", "gridpt", "train RMSE", "val RMSE", "test RMSE",
+                 "val-train gap", "diagnosis", "best epoch", "epochs"],
+                rows) + "\n")
+            counts = {}
+            for r in diag_runs:
+                key = r.get("diagnosis") or r.get("detection") or "unknown"
+                counts[key] = counts.get(key, 0) + 1
+            out.append("Diagnosis counts: " + ", ".join(
+                f"`{k}` {v}" for k, v in sorted(counts.items())) + ".\n")
+            out.append(
+                "A large positive `val-train gap` with a late best epoch is "
+                "the high-variance/overfit signature; a small gap with high "
+                "absolute RMSE is underfitting (high bias). See "
+                "`docs/OVERFITTING_UNDERFITTING.md`.\n")
+
     # ---- charts ----
     fig, ax = plt.subplots(figsize=(9, 5.5))
     colors = {"lstm_cnn": "#1f77b4", "cnn_bilstm": "#ff7f0e",
@@ -275,9 +319,34 @@ def main(specific_ts: str | None = None):
     p2 = CHARTS_DIR / f"rmse_bars_{stamp}.png"
     fig.tight_layout(); fig.savefig(p2, dpi=130); plt.close(fig)
 
+    # generalisation gap vs model size (only for runs with diagnostics)
+    diag_runs = [r for r in all_runs
+                 if r.get("train_rmse") is not None
+                 and r.get("val_rmse") is not None]
+    p3 = CHARTS_DIR / f"generalization_{stamp}.png"
+    if diag_runs:
+        fig, ax = plt.subplots(figsize=(9, 5.5))
+        for model in MODEL_ORDER:
+            mr = [r for r in diag_runs if r["model"] == model]
+            if not mr:
+                continue
+            ax.scatter([r["params"] for r in mr],
+                       [r["val_rmse"] - r["train_rmse"] for r in mr],
+                       s=48, alpha=0.75, label=model, color=colors[model],
+                       edgecolors="k", linewidths=0.4)
+        ax.axhline(0, color="black", lw=0.8)
+        ax.set_xscale("log")
+        ax.set_xlabel("parameter count (log)")
+        ax.set_ylabel("val RMSE - train RMSE (gap)")
+        ax.set_title("Generalisation gap vs model size — higher = more overfit")
+        ax.legend(fontsize=8); ax.grid(alpha=0.3)
+        fig.tight_layout(); fig.savefig(p3, dpi=130); plt.close(fig)
+
     out.append("\n## Charts\n")
     out.append(f"![accuracy vs size](charts/accuracy_{stamp}.png)")
     out.append(f"![grouped RMSE](charts/rmse_bars_{stamp}.png)")
+    if diag_runs:
+        out.append(f"![generalization gap](charts/generalization_{stamp}.png)")
 
     # ---- csv ranking ----
     import csv
@@ -287,8 +356,9 @@ def main(specific_ts: str | None = None):
     rows = []
     for r in all_runs:
         rows.append({k: r.get(k, "") for k in
-                     ["dataset", "model", "cfgid"] + METRICS + EFF +
-                     ["detection", "epochs"]})
+                     ["dataset", "model", "cfgid", "train_rmse", "val_rmse"]
+                     + METRICS + EFF +
+                     ["detection", "diagnosis", "epochs"]})
     rows.sort(key=lambda r: r["dataset"] + f'{r["test_rmse"]}')  # noqa
     buf = io.StringIO()
     w = csv.DictWriter(buf, fieldnames=list(rows[0].keys()))
@@ -340,7 +410,8 @@ def main(specific_ts: str | None = None):
 
     print(f"[save] commentary  -> {md_path}")
     print(f"[save] rankings    -> {csv_path}")
-    print(f"[save] charts      -> {p1}\n                      {p2}")
+    print(f"[save] charts      -> {p1}\n                      {p2}"
+          + (f"\n                      {p3}" if diag_runs else ""))
     print(f"[save] data        -> benchmarking/comparison_{stamp}.json")
 
 

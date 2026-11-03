@@ -30,9 +30,10 @@ six stages:
                                                              │
      DETECT & CORRECT      TRAIN              SPLIT + SMOTE   │
   ┌──────────────────┐  ┌──────────────┐  ┌──────────────────▼┐
-  │ detect_issue()   │  │ run_training │  │ 80:20 holdout or  │
-  │ overfit/underfit │◀─│ + 5 models   │◀─│ 10-fold CV + SMOTE │
-  │ retrain w/ new hp│  │ src/models/* │  │ (train only)      │
+  │ diagnose_training│  │ run_training │  │ 80:20 holdout or  │
+  │ + detect_issue() │◀─│ + 5 models   │◀─│ 10-fold CV + SMOTE │
+  │ overfit/underfit │  │ src/models/* │  │ (train only)      │
+  │ retrain w/ new hp│  │              │  │                   │
   └──────────────────┘  └──────┬───────┘  └───────────────────┘
                                │ checkpoints (.pt) + reports/
                                ▼
@@ -104,6 +105,7 @@ air-quality-hackathon/
 │   │   ├── lstm_attention.py          # hybrid 3
 │   │   ├── transformer_lstm.py        # hybrid 4
 │   │   └── convlstm_attention.py      # hybrid 5
+│   ├── diagnostics.py                 # overfit/underfit learning-curve diagnosis
 │   ├── train.py                       # training pipeline + CLI
 │   ├── evaluate.py                    # checkpoint evaluation + plots
 │   ├── predict.py                     # per-city next-day AQI forecast
@@ -119,14 +121,17 @@ air-quality-hackathon/
 │   ├── openaq_fetch.py                # pre-fetch day files to disk
 │   └── benchmark_models.py            # single-config 5-model comparison
 │
-├── benchmarking/                      # parameter-sweep benchmark suite
+├── benchmarking/                      # parameter-sweep + generalisation suite
 │   ├── run_sweep.py                   # 5 models × {seq_len,hidden} grid → results/*.json
-│   ├── compare_and_report.py          # sensitivity analysis → comparison.md + charts
+│   ├── compare_and_report.py          # sensitivity + gap analysis → comparison.md + charts
+│   ├── benchmark_generalization.py    # underfit/balanced/overfit experiment
+│   ├── overfitting_underfitting.md    # generated generalisation write-up
 │   ├── comparison.md                  # latest comparison write-up
 │   ├── ranking_*.csv                  # all runs sorted by test RMSE
 │   ├── summary_*.json / .csv          # flat roll-up of every run
 │   ├── results/<dataset>/<model>__<gridpt>.json   # one log per run (40)
-│   ├── charts/                        # accuracy-vs-size, grouped-RMSE PNGs
+│   ├── results/generalization/<model>__<regime>.json
+│   ├── charts/                        # accuracy, RMSE, learning-curve, gap PNGs
 │   ├── ckpt/  (gitignored)            # per-run checkpoints
 │   └── logs/  (gitignored)            # sweep console + failure logs
 │
@@ -341,7 +346,8 @@ gradients), producing a context vector that is max-pooled across time.
 | SMOTE | `apply_smote` | Synthetic minority-bucket oversampling on **training windows only** — the classifier no longer collapses onto the dominant bucket. |
 | Regression SMOTE | `apply_smote_regression` | Separate, opt-in (`--smote_reg`) pass that oversamples **rare/extreme regression targets** (`rare_quantile`), independent of the classification SMOTE. |
 | SMOTE-R | `apply_smote_r` (`src/data/smote_r.py`) | Third, opt-in (`--smote_r`) pass: **relevance function** `φ(y)` on the continuous target + **inverse-distance-weighted** target assignment (Torgo et al., 2013). numpy + scikit-learn only, no `imbalanced-learn`. |
-| Overfit/underfit correction | `detect_issue` | Overfit (val loss climbing far above train) → raise dropout + early stop; underfit (val flat) → raise `hidden_size` + epochs; then it retrains automatically. |
+| Overfit/underfit diagnosis | `src/diagnostics.py` | Compares train/validation curves: overfit = large train→val gap that regressed from the best val epoch; underfit = train loss dropped < 20% and val improved < 10%; exposes gap, best epoch and recommendations. |
+| Overfit/underfit correction | `detect_issue` | Overfit → raise dropout + early stop; underfit → raise `hidden_size` + epochs; then it retrains automatically and keeps the best-val snapshot. |
 | Adam + ReduceLROnPlateau | `run_training` | Adaptive-gradient optimizer; LR halves when validation loss plateaus. |
 | Early stopping | `run_training` | Keeps the best-weights snapshot; stops training after `patience` epochs without validation improvement. |
 | Metric reporting | `compute_metrics` / `evaluate` | RMSE/MAE/R² for regression; accuracy/F1/confusion matrix for classification. |
@@ -374,8 +380,9 @@ parse_args() ─▶ preprocess_dataset() ─▶ apply_smote() ─▶ [apply_smot
 | `train_one_epoch` | 472 | Standard PyTorch training loop. |
 | `evaluate_loader` | 489 | Validation/test loop collecting unscaled predictions. |
 | `Config(dict)` | 516 | Dict subclass with attribute access; holds all hyperparameters. |
-| `detect_issue` | 529 | Overfit rule → raise dropout; underfit rule → raise `hidden_size`/epochs. |
-| `run_training` | 579 | Full loop: build model → Adam + ReduceLROnPlateau → early stop → restore best weights → auto-correction retrain → save `.pt` checkpoint → history plot. |
+| `diagnose_training` | `src/diagnostics.py` | Pure learning-curve classifier: gap, gap ratio/trend, best epoch, train/val progress, overfit/underfit flags, recommendations. |
+| `detect_issue` | 534 | Maps the diagnosis to corrections: overfit → raise dropout; underfit → raise `hidden_size`/epochs. |
+| `run_training` | 573 | Full loop: build model → Adam + ReduceLROnPlateau → early stop → restore best weights → diagnose → auto-correction retrain → evaluate train/val/test → save `.pt` checkpoint (with diagnosis) → history plot. |
 | `run_cv` | 766 | 10-fold TimeSeriesSplit alternative. |
 | `parse_args` / `main` | 848/888 | CLI entry point (see below). |
 
@@ -566,12 +573,17 @@ python benchmarking/run_sweep.py --dataset uci --grid light --epochs 30
   `triple`, `single`). Data windows/scalers are computed **once per
   dataset×seq_len** and shared by every model for a fair head-to-head.
 - Per run it records: the **full `Config` actually used** (so results are
-  attributable to parameters), test RMSE/MAE/R2/acc/F1, `params`
+  attributable to parameters), train/val/test RMSE/MAE/R2/acc/F1, `params`
   (`sum(p.numel())`), CPU `train_time_s`, `inference_ms_per_batch`
   (warm 50 passes on `(64, T, F)`), checkpoint size, epochs run,
-  detect/corrections and the full train/val loss history.
+  `diagnosis` + `diagnosis_signals` (gap, best epoch), corrections and the
+  full train/val loss history.
 - Writes `benchmarking/results/<dataset>/<model>__<gridpt>.json` (skipped
   when present via `--resume`), plus `summary_<ts>.json/.csv`.
+- `benchmarking/benchmark_generalization.py` is the dedicated bias-variance
+  experiment (underfit / balanced / overfit regimes) → `results/generalization/`,
+  `overfitting_underfitting.md` and learning-curve/gap charts. Auto-correction
+  is disabled there so the raw curves are visible.
 
 ### `compare_and_report.py`
 

@@ -368,21 +368,27 @@ F1        = macro-averaged 2·P·R / (P+R) over AQI buckets
 
 All computed on **unscaled** AQI values (`inverse_normalize_target`).
 
-### 2.11 Overfit/underfit auto-correction (`detect_issue`, `train.py:533`)
+### 2.11 Overfit/underfit diagnosis and auto-correction
 
-With train loss `ℓ_t`, val loss history `ℓ_v`, best val `ℓ_v*`:
+`src/diagnostics.diagnose_training` classifies the learning curves (see
+[`OVERFITTING_UNDERFITTING.md`](OVERFITTING_UNDERFITTING.md)); with train loss
+`ℓ_t`, val loss history `ℓ_v`, best val `ℓ_v*`, final gap `g = ℓ_v(end) − ℓ_t(end)`:
 
 ```
-overfit  if  (ℓ_v − ℓ_t) > max(0.02, 0.2·ℓ_t)   and  ℓ_v ≥ 1.02·ℓ_v*
-            and the val gap persisted ≥ overfit_budget epochs
-            → dropout += 0.15  (regularize harder), retrain
+overfit  if  g > max(0.02, 0.2·|ℓ_t(end)|)
+            and ℓ_v(end) ≥ 1.02·ℓ_v*  and the val gap persisted ≥ 8 epochs
+            → dropout += 0.15 (≤ 0.6), early stopping, retrain
 
-underfit if  min(ℓ_v) ≥ 0.93·ℓ_t(0)  and  ℓ_v(end) > ℓ_t(end)
+underfit if  train loss dropped < 20% and val improved < 10% (≥ 8 epochs)
             → hidden_size × 1.5, epochs += 30, retrain
 ```
 
-`run_training` retrains once with the corrected config, keeps the
-best-val-round snapshot, and writes it to the checkpoint.
+The diagnosis also reports `best_epoch`, `epochs_since_best`, `gap_ratio`,
+progress fractions and recommended actions. `run_training` retrains once with
+the corrected config, keeps the best-val snapshot, and now also evaluates the
+**training split** so `train_rmse` can be compared with `val_rmse`/`test_rmse`.
+The diagnosis, correction count and gaps are stored in the checkpoint and in
+`models/reports/train_*.json`.
 
 ---
 

@@ -172,8 +172,10 @@ def main():
                                             meta["seq_len"], args.batch_size)
 
                 metrics = clean_metrics(
-                    {**res["val_metrics"], **res["test_metrics"]})
+                    {**res.get("train_metrics", {}), **res["val_metrics"],
+                     **res["test_metrics"]})
                 metrics.pop("val_loss", None)
+                diagnosis = res.get("diagnosis", {})
                 entry = {
                     "dataset": ds,
                     "model": model,
@@ -183,6 +185,8 @@ def main():
                     "input_size": meta["input_size"],
                     "corrections": res["corrections"],
                     "detection": res["reason"],
+                    "diagnosis": diagnosis.get("diagnosis"),
+                    "diagnosis_signals": diagnosis.get("signals", {}),
                     "epochs": len(res["history"]),
                     "params": int(n_params),
                     "train_time_s": round(train_s, 2),
@@ -200,8 +204,10 @@ def main():
                       f"rmse={entry.get('test_rmse')} r2={entry.get('test_r2')} "
                       f"acc={entry.get('test_accuracy')} "
                       f"f1={entry.get('test_f1')} "
+                      f"train_rmse={entry.get('train_rmse')} "
                       f"params={entry['params']:,} {entry['train_time_s']}s "
-                      f"detect={entry['detection']}", flush=True)
+                      f"detect={entry['detection']}/{entry.get('diagnosis')}",
+                      flush=True)
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     (BENCH_DIR / f"summary_{stamp}.json").write_text(
@@ -222,9 +228,9 @@ def _to_csv(summary):
     buf = io.StringIO()
     w = csv.writer(buf)
     keys = ["dataset", "model", "cfgid", "epochs", "params", "train_time_s",
-            "inference_ms_per_batch", "checkpoint_mb", "test_rmse", "test_mae",
-            "test_r2", "test_accuracy", "test_precision", "test_recall",
-            "test_f1", "detection", "corrections"]
+            "inference_ms_per_batch", "checkpoint_mb", "train_rmse", "val_rmse",
+            "test_rmse", "test_mae", "test_r2", "test_accuracy", "test_precision",
+            "test_recall", "test_f1", "detection", "diagnosis", "corrections"]
     w.writerow(keys)
     for ds, models in summary.items():
         for model, runs in models.items():

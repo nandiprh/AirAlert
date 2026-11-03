@@ -102,3 +102,33 @@ not a constraint.
 
 The full per-run metrics (val + test, loss, confusion-matrix source) are in
 `docs/model_comparison_results.json`.
+
+## 6. Generalisation check (overfitting vs underfitting)
+
+The single-configuration table above answers *which architecture is most
+accurate*. A separate benchmark answers *whether the saved weights generalise*:
+`benchmarking/benchmark_generalization.py` trains each model under three
+deliberately induced regimes (tiny/undertrained, moderate, and large/no-
+regularisation) on the same split and seed, with auto-correction disabled. It
+records train/validation/test RMSE, the train→validation gap, the best epoch and
+the diagnosis from `src/diagnostics.py`.
+
+Latest UCI run (20 epochs; underfit regime 8 epochs; seed 42):
+
+| regime | mean train RMSE | mean val RMSE | mean test RMSE | mean gap (val−train) | diagnoses |
+|--------|----------------:|--------------:|---------------:|---------------------:|-----------|
+| underfit | 1.247 | 1.960 | 1.302 | +0.713 | underfit: 3, good_fit: 2 |
+| balanced | 0.837 | 1.538 | 1.000 | +0.701 | overfit: 5 |
+| overfit | 0.859 | 1.567 | 0.985 | +0.708 | overfit: 5 |
+
+- The underfit regime has the **highest test error** — high bias.
+- The moderate and large regimes both overfit this small UCI subset (~571
+  training windows); the best-val snapshot keeps their checkpoints usable.
+- `transformer_lstm` remains the most accurate model (test RMSE `0.725`).
+
+This is why every reported test score comes from the **best-validation
+snapshot**, not the last epoch, and why the training pipeline keeps the
+overfit/underfit correction loop. Full write-up:
+[`docs/OVERFITTING_UNDERFITTING.md`](OVERFITTING_UNDERFITTING.md); generated
+tables and curves:
+[`benchmarking/overfitting_underfitting.md`](../benchmarking/overfitting_underfitting.md).

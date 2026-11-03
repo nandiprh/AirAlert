@@ -1,0 +1,204 @@
+{
+  "dataset": "uci",
+  "city": null,
+  "model": "cnn_bilstm",
+  "regime": "underfit",
+  "config": {
+    "epochs": 8,
+    "seq_len": 24,
+    "batch_size": 64,
+    "lr": 0.001,
+    "hidden_size": 8,
+    "num_layers": 1,
+    "dropout": 0.5,
+    "task": "both",
+    "patience": 12,
+    "early_stopping": true,
+    "lr_schedule": "plateau",
+    "city": null,
+    "weight_decay": 1e-05,
+    "overfit_budget": 4,
+    "underfit_budget": 8,
+    "max_lr_reductions": 2,
+    "quiet": true,
+    "no_smote": false
+  },
+  "params": 1117,
+  "train_time_s": 5.34,
+  "epochs": 8,
+  "train_rmse": 1.2821888978458493,
+  "val_rmse": 1.9923235410201237,
+  "test_rmse": 1.3201590509500887,
+  "gap_snapshot_val_minus_train": 0.7101346431742743,
+  "gap_curve_val_minus_train": 1.226312,
+  "best_epoch": 8,
+  "diagnosis": "underfit",
+  "diagnosis_reason": "train loss only dropped 5% and validation only improved 2%; the model cannot fit the training signal (final train 2.3165)",
+  "recommendations": [
+    "increase model capacity (hidden_size / layers)",
+    "train longer or raise the learning rate",
+    "lower dropout / weight decay",
+    "add richer input features"
+  ],
+  "signals": {
+    "first_train_loss": 2.442197,
+    "final_train_loss": 2.316492,
+    "final_val_loss": 3.542804,
+    "best_val_loss": 3.542804,
+    "best_epoch": 8,
+    "epochs_since_best": 0,
+    "generalization_gap": 1.226312,
+    "generalization_gap_ratio": 0.529383,
+    "generalization_gap_trend": 0.062189,
+    "train_drop": 0.125705,
+    "train_drop_fraction": 0.051472,
+    "val_improvement_fraction": 0.017612
+  },
+  "history": [
+    {
+      "epoch": 1.0,
+      "train_loss": 2.4421967376362193,
+      "val_loss": 3.6063194274902344
+    },
+    {
+      "epoch": 2.0,
+      "train_loss": 2.4313072724775835,
+      "val_loss": 3.6276183128356934
+    },
+    {
+      "epoch": 3.0,
+      "train_loss": 2.4157014326615767,
+      "val_loss": 3.6375317573547363
+    },
+    {
+      "epoch": 4.0,
+      "train_loss": 2.399137106808749,
+      "val_loss": 3.632693290710449
+    },
+    {
+      "epoch": 5.0,
+      "train_loss": 2.3853997967459937,
+      "val_loss": 3.621901512145996
+    },
+    {
+      "epoch": 6.0,
+      "train_loss": 2.366810300133445,
+      "val_loss": 3.6094822883605957
+    },
+    {
+      "epoch": 7.0,
+      "train_loss": 2.33249568939209,
+      "val_loss": 3.5880401134490967
+    },
+    {
+      "epoch": 8.0,
+      "train_loss": 2.316491723060608,
+      "val_loss": 3.5428037643432617
+    }
+  ],
+  "train_loss": 2.262470310384577,
+  "train_mae": 1.0079500791993752,
+  "train_r2": 0.13672528602341005,
+  "train_n": 692,
+  "train_accuracy": 0.27890173410404623,
+  "train_precision": 0.1845866054578524,
+  "train_recall": 0.27890173410404623,
+  "train_f1": 0.210986886908643,
+  "train_confusion_matrix": [
+    [
+      0,
+      83,
+      4,
+      86
+    ],
+    [
+      0,
+      35,
+      53,
+      85
+    ],
+    [
+      0,
+      10,
+      145,
+      18
+    ],
+    [
+      0,
+      0,
+      160,
+      13
+    ]
+  ],
+  "train_cls_n": 692,
+  "val_loss": 3.5428037643432617,
+  "val_mae": 1.521337162145386,
+  "val_r2": -0.43290908780518356,
+  "val_n": 42,
+  "val_accuracy": 0.2619047619047619,
+  "val_precision": 0.1937578550481776,
+  "val_recall": 0.2619047619047619,
+  "val_f1": 0.1919294990723562,
+  "val_confusion_matrix": [
+    [
+      0,
+      0,
+      0,
+      3
+    ],
+    [
+      0,
+      0,
+      0,
+      2
+    ],
+    [
+      0,
+      0,
+      9,
+      4
+    ],
+    [
+      0,
+      0,
+      22,
+      2
+    ]
+  ],
+  "val_cls_n": 42,
+  "test_loss": 2.3712072372436523,
+  "test_mae": 1.0637817970563204,
+  "test_r2": 0.12940543320514863,
+  "test_n": 142,
+  "test_accuracy": 0.28169014084507044,
+  "test_precision": 0.1547438477015942,
+  "test_recall": 0.28169014084507044,
+  "test_f1": 0.19088669329409294,
+  "test_confusion_matrix": [
+    [
+      0,
+      19,
+      4,
+      7
+    ],
+    [
+      0,
+      13,
+      14,
+      5
+    ],
+    [
+      0,
+      3,
+      27,
+      4
+    ],
+    [
+      0,
+      0,
+      46,
+      0
+    ]
+  ],
+  "test_cls_n": 142
+}

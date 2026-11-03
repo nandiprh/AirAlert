@@ -343,6 +343,37 @@ Outputs:
 
 ---
 
+## 7c. Benchmarking Overfitting / Underfitting
+
+`benchmarking/benchmark_generalization.py` trains each model under three
+deliberately induced regimes on the same split/seed, with auto-correction
+disabled so the raw curves are visible:
+
+```bash
+source .venv/bin/activate
+.venv/bin/python benchmarking/benchmark_generalization.py \
+    --dataset uci --epochs 20 --underfit_epochs 8 --seq_len 24
+# --dataset india --city Delhi    same experiment on the city AQI data
+# --models lstm_cnn transformer_lstm    subset of architectures
+```
+
+Regimes: `underfit` (hidden 8, dropout 0.5, 8 epochs), `balanced`
+(hidden 64, dropout 0.2, 20 epochs), `overfit` (hidden 256, 3 layers,
+dropout 0.0, no early stop, 20 epochs).
+
+Outputs:
+- `benchmarking/results/generalization/<model>__<regime>.json` — one record/run
+- `benchmarking/generalization_summary_<stamp>.json` / `.csv` — flat roll-up
+- `benchmarking/overfitting_underfitting.md` — generated write-up + diagnosis tables
+- `benchmarking/charts/learning_curves_<stamp>.png` — train/val curves per regime
+- `benchmarking/charts/generalization_gaps_<stamp>.png` — val−train RMSE gap
+
+The detection rule itself lives in `src/diagnostics.py`; see
+[`OVERFITTING_UNDERFITTING.md`](OVERFITTING_UNDERFITTING.md) for the full
+definitions and interpretation.
+
+---
+
 ## 8. Pipeline Overview
 
 ```
@@ -357,6 +388,7 @@ src/data/preprocess.py        ← loads + cleans all CSVs
 src/data/openaq_loader.py     ← OpenAQ station enrichment + country assignment
 src/data/smote_r.py           ← SMOTE-R (relevance-weighted regression SMOTE)
 src/models/*.py               ← 5 hybrid DL architectures (PyTorch)
+src/diagnostics.py            ← overfit/underfit learning-curve diagnosis
 src/train.py                  ← train loop with SMOTE, CV, overfit detection
 src/evaluate.py               ← test evaluation + plots
 src/predict.py                ← per-city next-day AQI forecast
@@ -365,8 +397,9 @@ src/visualization/map_cities.py ← city-wise prediction maps
 src/visualization/location_table.py ← hardcoded city → coordinate resolution
 src/visualization/aqi_spec.py ← shared AQI buckets/colors + health legend
 benchmarking/run_sweep.py      ← parameter-sweep benchmarks → results/*.json
-benchmarking/compare_and_report.py ← sensitivity / comparison → comparison.md
+benchmarking/compare_and_report.py ← sensitivity / gap analysis → comparison.md
 benchmarking/benchmark_smote.py  ← SMOTE / SMOTE-R strategy comparison
+benchmarking/benchmark_generalization.py ← underfit/overfit regime benchmark
 
 output/                       ← map HTML + PNG files
 models/checkpoints/           ← saved .pt model files

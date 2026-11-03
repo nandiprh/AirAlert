@@ -22,6 +22,27 @@ Five hybrid architectures are implemented in `src/models/` (PyTorch):
 
 ---
 
+## Overfitting & Underfitting
+
+Every training run is diagnosed from its train/validation loss curves by
+`src/diagnostics.py` (bias-variance view):
+
+| Regime | Signature | Automatic correction |
+|--------|-----------|----------------------|
+| **Underfitting** (high bias) | Train loss drops < 20% and validation improves < 10% — the model cannot fit the signal | `hidden_size × 1.5`, `epochs += 30`, retrain |
+| **Good fit** | Both losses fall together; small stable gap | none |
+| **Overfitting** (high variance) | Validation loss sits materially above train loss and has regressed from its best epoch for ≥ 8 epochs | `dropout += 0.15`, early stopping, LR plateau, retrain |
+
+The best-validation snapshot is always saved, so the checkpoint never keeps an
+overfit last epoch. Diagnoses, gaps, train/val/test scores and correction counts
+are written to `models/reports/train_*.json`; the dedicated benchmark
+`benchmarking/benchmark_generalization.py` deliberately trains underfit /
+balanced / overfit regimes and writes
+[`benchmarking/overfitting_underfitting.md`](benchmarking/overfitting_underfitting.md).
+Full explanation: [`docs/OVERFITTING_UNDERFITTING.md`](docs/OVERFITTING_UNDERFITTING.md).
+
+---
+
 ## Datasets
 
 | Dataset | Source | Size | Coverage |
@@ -118,6 +139,7 @@ air-quality-hackathon/
 │   │   ├── lstm_attention.py
 │   │   ├── transformer_lstm.py
 │   │   └── convlstm_attention.py
+│   ├── diagnostics.py          ← overfit/underfit learning-curve diagnosis
 │   ├── train.py                ← training with SMOTE, CV, overfit correction
 │   ├── evaluate.py             ← test evaluation + plots
 │   ├── predict.py              ← per-city next-day AQI forecast
@@ -136,18 +158,21 @@ air-quality-hackathon/
 │   ├── CODE_ARCHITECTURE.md     ← file-by-file code explanation + layout
 │   ├── MODEL_COMPARISON.md      ← 5-model accuracy vs efficiency benchmark
 │   ├── MODEL_MATH_AND_RUN.md    ← how to run + model math + code walkthrough
+│   ├── OVERFITTING_UNDERFITTING.md ← bias-variance + detection rules + results
 │   ├── SMOTE_R.md               ← SMOTE-R description + how-to
 │   └── MATHEMATICAL_MODELING.md ← formal math of every model/algo/score
-├── benchmarking/                ← parameter-sweep benchmark suite
+├── benchmarking/                ← parameter-sweep + generalisation suite
 │   ├── run_sweep.py             ← 5 models × {seq_len} × {hidden} grid
-│   ├── compare_and_report.py    ← sensitivity analysis + comparison.md
+│   ├── compare_and_report.py    ← sensitivity + gap analysis + comparison.md
+│   ├── benchmark_generalization.py ← underfit/balanced/overfit experiment
+│   ├── overfitting_underfitting.md ← generated generalisation write-up
 │   ├── benchmark_smote.py       ← SMOTE / SMOTE-R strategy comparison
 │   ├── smote_comparison.md      ← the resampling comparison write-up
 │   ├── comparison.md            ← the comparison write-up (latest run)
 │   ├── ranking_*.csv            ← all runs sorted by test RMSE
 │   ├── summary_*.json/.csv      ← flat roll-up of every run
-│   ├── results/                 ← one JSON log per run (40 files)
-│   └── charts/                  ← accuracy-vs-size, grouped RMSE plots
+│   ├── results/                 ← one JSON log per run + generalization/
+│   └── charts/                  ← accuracy, RMSE, learning-curve, gap plots
 ├── scripts/
 │   ├── openaq_scan.py          ← worldwide OpenAQ station discovery (S3 scan)
 │   ├── openaq_select.py        ← merge scans + country-balanced selection
@@ -188,6 +213,11 @@ python src/predict.py --model lstm_cnn --epochs 30 --seq_len 7
 python src/visualization/map_cities.py
 # → output/india_city_predictions.html  (states + city markers by predicted AQI)
 # → output/world_city_predictions.html  (predicted city markers on world map)
+
+# 7. Overfitting / underfitting benchmark
+python benchmarking/benchmark_generalization.py --epochs 20 --underfit_epochs 8
+# → benchmarking/overfitting_underfitting.md
+# → benchmarking/charts/learning_curves_*.png + generalization_gaps_*.png
 ```
 
 Full execution details are documented in **[docs/FETCH_AND_RUN.md](docs/FETCH_AND_RUN.md)**;
@@ -197,7 +227,10 @@ a file-by-file explanation of the code and source layout is in
 **[docs/CODE_ARCHITECTURE.md](docs/CODE_ARCHITECTURE.md)**; the formal
 mathematics behind every model, algorithm and score are in
 **[docs/MATHEMATICAL_MODELING.md](docs/MATHEMATICAL_MODELING.md)**; the
-parameter-sweep benchmark results live in
+overfitting/underfitting concepts, detection rules and generalisation benchmark
+are in **[docs/OVERFITTING_UNDERFITTING.md](docs/OVERFITTING_UNDERFITTING.md)**
+and **[benchmarking/overfitting_underfitting.md](benchmarking/overfitting_underfitting.md)**;
+the parameter-sweep benchmark results live in
 **[benchmarking/comparison.md](benchmarking/comparison.md)**.
 
 ---
@@ -221,11 +254,13 @@ Optional SMOTE-R  (--smote_r: relevance-weighted oversampling of the rare AQI ta
 ↓
 Model Training  (one of 5 hybrid architectures)
 ↓
-Overfitting / Underfitting Detection  (train vs val loss)
+Overfitting / Underfitting Diagnosis  (src/diagnostics.py: train vs val loss,
+                                       gap, best epoch, progress)
 ↓
-Auto-Correction  (dropout ↑, LR scheduler, early stopping) → Retrain
+Auto-Correction  (overfit: dropout ↑ + early stop; underfit: capacity ↑ +
+                  epochs ↑) → Retrain once, keep best-val snapshot
 ↓
-Final Test Evaluation  (src/evaluate.py)
+Final Test Evaluation  (src/evaluate.py + models/reports/*_history.png)
 ```
 
 ---

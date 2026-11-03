@@ -3,7 +3,7 @@
   "model": "cnn_bilstm",
   "cfgid": "s24_h32",
   "config": {
-    "epochs": 5,
+    "epochs": 12,
     "seq_len": 24,
     "batch_size": 64,
     "lr": 0.001,
@@ -19,17 +19,32 @@
     "overfit_budget": 8,
     "underfit_budget": 8,
     "max_lr_reductions": 2,
-    "quiet": false,
+    "quiet": true,
     "no_smote": false
   },
   "task": "both",
   "input_size": 13,
   "corrections": 0,
   "detection": "none",
-  "epochs": 5,
+  "diagnosis": "good_fit",
+  "diagnosis_signals": {
+    "first_train_loss": 2.414266,
+    "final_train_loss": 0.976183,
+    "final_val_loss": 3.001574,
+    "best_val_loss": 2.161858,
+    "best_epoch": 7,
+    "epochs_since_best": 5,
+    "generalization_gap": 2.025391,
+    "generalization_gap_ratio": 2.074806,
+    "generalization_gap_trend": 0.637296,
+    "train_drop": 1.438082,
+    "train_drop_fraction": 0.59566,
+    "val_improvement_fraction": 0.431443
+  },
+  "epochs": 12,
   "params": 18533,
-  "train_time_s": 0.82,
-  "inference_ms_per_batch": 3.175,
+  "train_time_s": 6.4,
+  "inference_ms_per_batch": 7.22,
   "checkpoint_mb": 0.09,
   "history": [
     {
@@ -56,76 +71,147 @@
       "epoch": 5.0,
       "train_loss": 1.6443700898777356,
       "val_loss": 2.8717994689941406
+    },
+    {
+      "epoch": 6.0,
+      "train_loss": 1.4355915242975408,
+      "val_loss": 2.619744300842285
+    },
+    {
+      "epoch": 7.0,
+      "train_loss": 1.3118754842064597,
+      "val_loss": 2.1618576049804688
+    },
+    {
+      "epoch": 8.0,
+      "train_loss": 1.2235160957683215,
+      "val_loss": 2.542397975921631
+    },
+    {
+      "epoch": 9.0,
+      "train_loss": 1.1486466256054966,
+      "val_loss": 2.468754291534424
+    },
+    {
+      "epoch": 10.0,
+      "train_loss": 1.0749444311315364,
+      "val_loss": 2.522833824157715
+    },
+    {
+      "epoch": 11.0,
+      "train_loss": 1.0217576785521074,
+      "val_loss": 2.758394241333008
+    },
+    {
+      "epoch": 12.0,
+      "train_loss": 0.9761831760406494,
+      "val_loss": 3.0015738010406494
     }
   ],
-  "val_rmse": 1.7396,
-  "val_mae": 1.3488,
-  "val_r2": -0.0925,
+  "train_loss": 1.2308,
+  "train_rmse": 0.7426,
+  "train_mae": 0.5335,
+  "train_r2": 0.7104,
+  "train_n": 692.0,
+  "train_accuracy": 0.6199,
+  "train_precision": 0.6371,
+  "train_recall": 0.6199,
+  "train_f1": 0.5677,
+  "train_confusion_matrix": [
+    [
+      171,
+      2,
+      0,
+      0
+    ],
+    [
+      85,
+      42,
+      27,
+      19
+    ],
+    [
+      15,
+      13,
+      54,
+      91
+    ],
+    [
+      1,
+      1,
+      9,
+      162
+    ]
+  ],
+  "train_cls_n": 692.0,
+  "val_rmse": 1.4396,
+  "val_mae": 1.0745,
+  "val_r2": 0.2518,
   "val_n": 42.0,
-  "val_accuracy": 0.5,
-  "val_precision": 0.4473,
-  "val_recall": 0.5,
-  "val_f1": 0.4636,
+  "val_accuracy": 0.5714,
+  "val_precision": 0.6285,
+  "val_recall": 0.5714,
+  "val_f1": 0.5805,
   "val_confusion_matrix": [
     [
       2,
-      0,
-      0,
-      1
-    ],
-    [
-      1,
-      0,
-      0,
-      1
-    ],
-    [
-      7,
-      2,
-      0,
-      4
-    ],
-    [
-      1,
-      2,
-      2,
-      19
-    ]
-  ],
-  "val_cls_n": 42.0,
-  "test_loss": 1.6443,
-  "test_rmse": 0.9434,
-  "test_mae": 0.6693,
-  "test_r2": 0.5554,
-  "test_n": 142.0,
-  "test_accuracy": 0.5634,
-  "test_precision": 0.5703,
-  "test_recall": 0.5634,
-  "test_f1": 0.5072,
-  "test_confusion_matrix": [
-    [
-      29,
       1,
       0,
       0
     ],
     [
-      22,
-      7,
+      1,
+      1,
       0,
-      3
+      0
     ],
     [
-      6,
-      5,
-      6,
-      17
+      3,
+      3,
+      3,
+      4
     ],
     [
       1,
+      1,
       4,
+      18
+    ]
+  ],
+  "val_cls_n": 42.0,
+  "test_loss": 1.2317,
+  "test_rmse": 0.8493,
+  "test_mae": 0.6317,
+  "test_r2": 0.6396,
+  "test_n": 142.0,
+  "test_accuracy": 0.6127,
+  "test_precision": 0.5839,
+  "test_recall": 0.6127,
+  "test_f1": 0.5641,
+  "test_confusion_matrix": [
+    [
+      29,
+      0,
+      1,
+      0
+    ],
+    [
+      18,
+      6,
+      5,
+      3
+    ],
+    [
       3,
-      38
+      6,
+      11,
+      14
+    ],
+    [
+      0,
+      0,
+      5,
+      41
     ]
   ],
   "test_cls_n": 142.0

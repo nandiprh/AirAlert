@@ -98,14 +98,18 @@ def main():
         infer_ms = inference_timing(model, meta["input_size"], meta["seq_len"],
                                     args.batch_size)
 
-        metrics = clean({**res["val_metrics"], **res["test_metrics"]})
+        metrics = clean({**res.get("train_metrics", {}), **res["val_metrics"],
+                         **res["test_metrics"]})
         metrics.pop("val_loss", None)
+        diagnosis = res.get("diagnosis", {})
         entry = {
             "dataset": args.dataset,
             "task": "both",
             "seq_len": args.seq_len,
             "corrections": res["corrections"],
             "detection": res["reason"],
+            "diagnosis": diagnosis.get("diagnosis"),
+            "diagnosis_signals": diagnosis.get("signals", {}),
             "epochs": len(res["history"]),
             "params": int(n_params),
             "train_time_s": round(train_s, 2),

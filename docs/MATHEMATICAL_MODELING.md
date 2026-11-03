@@ -311,20 +311,32 @@ CE(p,c)  = −(1/N) Σ_i log p_{i, c_i}          bucket cross-entropy
 - **Early stopping:** weights from the best val-loss epoch are restored;
   training halts after `patience = 12` epochs with no improvement.
 
-### 5.1 Auto overfit/underfit correction
+### 5.1 Overfit/underfit diagnosis and correction
 
-With `ℓ_t` the latest train loss, `ℓ_v` the val-loss history, `ℓ_v*` its min:
+`src/diagnostics.diagnose_training` analyses the train/validation curves. With
+`ℓ_t(e)`, `ℓ_v(e)` the losses at epoch `e`, `e* = argmin_e ℓ_v(e)`, `n` epochs,
+and `g = ℓ_v(n−1) − ℓ_t(n−1)` the final generalisation gap:
 
 ```
-OVERFIT   if  (ℓ_v − ℓ_t) > max(0.02, 0.2·ℓ_t)
-              and ℓ_v ≥ 1.02·ℓ_v* and the gap lasted ≥ 8 epochs
-         → dropout += 0.15, retrain (regularize harder)
+gap ratio      r = g / |ℓ_t(n−1)|
+train progress p_t = (ℓ_t(0) − ℓ_t(n−1)) / |ℓ_t(0)|
+val progress   p_v = (ℓ_v(0) − min_e ℓ_v(e)) / |ℓ_v(0)|
 
-UNDERFIT  if  min(ℓ_v) ≥ 0.93·ℓ_t(0)  and  ℓ_v(end) > ℓ_t(end)
+OVERFIT   if  g > max(0.02, 0.2·|ℓ_t(n−1)|)
+              and ℓ_v(n−1) ≥ 1.02·min_e ℓ_v(e)
+              and (n−1−e*) ≥ 8
+         → dropout += 0.15 (≤ 0.6), early stopping, retrain
+
+UNDERFIT  if  p_t < 0.20  and  p_v < 0.10  and  n ≥ 8
          → hidden_size × 1.5, epochs += 30, retrain
+
+otherwise GOOD_FIT / INSUFFICIENT_EVIDENCE (n < 4)
 ```
 
-One correction round max; the best-val snapshot is always kept.
+A large train→val gap is high variance, not high bias, so it is deliberately
+excluded from the underfit rule. One correction round max; the best-val
+snapshot is always kept. Every diagnosis also exposes `best_epoch`,
+`epochs_since_best`, the gap/trend and progress fractions for reporting.
 
 ---
 
@@ -384,11 +396,27 @@ score = 0.5·ṟmse + 0.3·p̂arams + 0.2·t̂rain
 `lstm_attention` (UCI) that are cheap yet still accurate enough, where pure
 RMSE would over-privilege a heavyweight architecture.
 
-### 7.3 Reproduce
+### 7.3 Generalisation gap benchmark
+
+`benchmarking/benchmark_generalization.py` measures the bias-variance trade-off
+directly. For each model and regime it logs the curve gap and the snapshot gap:
+
+```
+curve gap   = ℓ_v(n−1) − ℓ_t(n−1)          (end-of-training history)
+snapshot gap = RMSE_val − RMSE_train        (best-val saved weights)
+```
+
+The diagnosis label is the §5.1 rule, with auto-correction disabled so the raw
+regime can be observed. Larger snapshot/curve gap = more variance; high absolute
+train error with little train progress = more bias.
+
+### 7.4 Reproduce
 
 ```bash
 .venv/bin/python benchmarking/run_sweep.py --epochs 5        # 5 models × grid
 .venv/bin/python benchmarking/compare_and_report.py          # comparison.md + charts
+.venv/bin/python benchmarking/benchmark_generalization.py \
+    --epochs 20 --underfit_epochs 8                          # over/underfit report
 ```
 
 ---
@@ -411,7 +439,9 @@ RMSE would over-privilege a heavyweight architecture.
 | Positional encoding | sin/cos | `transformer_lstm.py:17` |
 | Multi-head attn | `Concat(heads)W_O` | `transformer_lstm.py:78` |
 | Multi-task loss | `MSE+γ·CE+λ₂‖θ‖²` | `src/train.py` train loop |
+| Diagnosis rules | §5.1 | `src/diagnostics.py` `diagnose_training` |
 | Correction rules | §5.1 | `src/train.py:533` `detect_issue` |
+| Generalisation gap | §7.3 | `src/diagnostics.py`, `benchmark_generalization.py` |
 | Metrics | RMSE/MAE/R²/F1 | `src/models/base.py` `compute_metrics` |
 | Sensitivity | `RMSE(high)−RMSE(low)` | `benchmarking/compare_and_report.py` |
 | Balance score | `0.5·ṟmse+0.3·p̂arams+0.2·t̂rain` | `benchmarking/compare_and_report.py` |

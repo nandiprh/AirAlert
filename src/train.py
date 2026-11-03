@@ -42,6 +42,7 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
 from src.data.smote_r import apply_smote_r
+from src.diagnostics import diagnose_training, summarize_diagnosis
 from src.models import (
     MODEL_REGISTRY,
     SequenceDataset,
@@ -533,25 +534,15 @@ class Config(dict):
 def detect_issue(history, cfg):
     """Detect overfit/underfit from training history.
 
+    Delegates the curve analysis to :func:`src.diagnostics.diagnose_training`
+    and maps the diagnosis onto a corrected hyper-parameter configuration.
+
     Returns ``(reason, corrected_cfg)`` where reason in
     ``{'none', 'overfit', 'underfit'}``.
     """
-    if len(history) < 4:
-        return "none", cfg
-    tr = np.array([h["train_loss"] for h in history])
-    va = np.array([h["val_loss"] for h in history])
-    best_idx = int(np.argmin(va))
-
-    over_budget = int(cfg.get("overfit_budget", 8))
-    under_budget = int(cfg.get("underfit_budget", 8))
-
-    # Overfit: training loss small but val loss climbing well above train.
-    gap = float(va[-1] - tr[-1])
-    if (
-        gap > max(0.02, 0.2 * tr[-1])
-        and va[-1] >= float(np.min(va)) * 1.02
-        and len(history) - 1 - best_idx >= over_budget
-    ):
+    diag = diagnose_training(history, cfg)
+    reason = diag["diagnosis"]
+    if reason == "overfit":
         c = Config(cfg)
         c["dropout"] = round(min(0.6, float(cfg.get("dropout", 0.2)) + 0.15), 3)
         c["early_stopping"] = True
@@ -559,15 +550,14 @@ def detect_issue(history, cfg):
         print("  [correction] OVERFITTING -> dropout up, early stopping, LR plateau")
         return "overfit", c
 
-    # Underfit: val never improves meaningfully (flat / above train).
-    if float(np.min(va)) >= float(tr[0]) * 0.93 and float(va[-1]) > float(tr[-1]) * 1.0:
-        if len(history) >= under_budget:
-            c = Config(cfg)
-            c["hidden_size"] = int(float(cfg.get("hidden_size", 64)) * 1.5)
-            c["epochs"] = int(cfg.get("epochs", 50)) + 30
-            c["lr_schedule"] = "plateau"
-            print("  [correction] UNDERFITTING -> capacity up, more epochs, LR plateau")
-            return "underfit", c
+    if reason == "underfit":
+        c = Config(cfg)
+        c["hidden_size"] = int(float(cfg.get("hidden_size", 64)) * 1.5)
+        c["epochs"] = int(cfg.get("epochs", 50)) + 30
+        c["lr_schedule"] = "plateau"
+        print("  [correction] UNDERFITTING -> capacity up, more epochs, LR plateau")
+        return "underfit", c
+
     return "none", cfg
 
 
@@ -702,6 +692,7 @@ def run_training(model_name, data, cfg, checkpoint_path, seed=42,
 
         # Restore best weights.
         model.load_state_dict(best_state)
+        diagnosis = diagnose_training(history, cfg)
 
         reason, corrected = detect_issue(history, cfg)
         if reason != "none" and correction_round < max_correction_rounds:
@@ -709,13 +700,17 @@ def run_training(model_name, data, cfg, checkpoint_path, seed=42,
             cfg = corrected
             continue  # retrain with corrected hyperparameters
 
+        train_res = evaluate_loader(model, train_loader, task, crit_reg, crit_cls)
         test_res = evaluate_loader(model, test_loader, task, crit_reg, crit_cls)
+        train_metrics = to_split_metrics(train_res, data, use_reg, use_cls, "train")
         val_metrics = to_split_metrics(best_val_res, data, use_reg, use_cls, "val")
         test_metrics = to_split_metrics(test_res, data, use_reg, use_cls, "test")
 
         result = dict(
             model=model, history=history, reason=reason,
             corrections=correction_round,
+            diagnosis=diagnosis,
+            train_metrics=train_metrics,
             val_loss=val_metrics.get("val_loss", float("inf")),
             val_metrics=val_metrics, test_metrics=test_metrics,
             test_res=test_res, val_res=best_val_res,
@@ -737,13 +732,15 @@ def run_training(model_name, data, cfg, checkpoint_path, seed=42,
             "task": task,
             "use_reg": use_reg,
             "use_cls": use_cls,
+            "diagnosis": best_overall.get("diagnosis"),
         },
         checkpoint_path,
     )
     print(f"[save] checkpoint -> {checkpoint_path}")
 
     best_overall["model"] = best_overall["model"].cpu()
-    _plot_history(best_overall["history"], model_name, checkpoint_path)
+    _plot_history(best_overall["history"], model_name, checkpoint_path,
+                  best_overall.get("diagnosis"))
     return best_overall
 
 
@@ -764,16 +761,29 @@ def to_split_metrics(res, data, use_reg, use_cls, split):
     return out
 
 
-def _plot_history(history, model_name, checkpoint_path):
+def _plot_history(history, model_name, checkpoint_path, diagnosis=None):
     os.makedirs(REPORT_DIR, exist_ok=True)
     base = os.path.splitext(os.path.basename(checkpoint_path))[0]
     epochs = [h["epoch"] for h in history]
+    train = [h["train_loss"] for h in history]
+    val = [h["val_loss"] for h in history]
     fig, ax = plt.subplots(figsize=(7, 4))
-    ax.plot(epochs, [h["train_loss"] for h in history], "o-", ms=3, label="train")
-    ax.plot(epochs, [h["val_loss"] for h in history], "s-", ms=3, label="val")
+    ax.plot(epochs, train, "o-", ms=3, label="train")
+    ax.plot(epochs, val, "s-", ms=3, label="val")
+    if val:
+        best_idx = int(np.argmin(val))
+        ax.axvline(epochs[best_idx], color="grey", ls="--", lw=1,
+                   label=f"best val (epoch {epochs[best_idx]})")
+        if diagnosis:
+            signals = diagnosis.get("signals", {})
+            ax.set_title(
+                f"{model_name} training history — {diagnosis.get('diagnosis', 'n/a')} "
+                f"(gap {signals.get('generalization_gap', float('nan')):+.4f})"
+            )
+    if not diagnosis:
+        ax.set_title(f"{model_name} training history")
     ax.set_xlabel("epoch"); ax.set_ylabel("loss")
-    ax.set_title(f"{model_name} training history (detect: {history[-1].get('note', '') or 'ok'})")
-    ax.legend(); ax.grid(alpha=0.3)
+    ax.legend(fontsize=8); ax.grid(alpha=0.3)
     path = os.path.join(REPORT_DIR, f"{base}_history.png")
     fig.tight_layout(); fig.savefig(path, dpi=120); plt.close(fig)
     print(f"[plot] training history -> {path}")
@@ -972,9 +982,11 @@ def main():
         print(f"\n===== Training: {name} (dataset={args.dataset}, task={args.task}) =====")
         ckpt = os.path.join(CKPT_DIR, f"{name}_{args.dataset}_{args.task}_s{args.seq_len}.pt")
         result = run_training(name, data, cfg, checkpoint_path=ckpt, seed=args.seed)
-        metrics = {**result["val_metrics"], **result["test_metrics"]}
-        metrics.pop("val_y_true", None); metrics.pop("val_y_pred", None)
-        metrics.pop("test_y_true", None); metrics.pop("test_y_pred", None)
+        metrics = {**result.get("train_metrics", {}), **result["val_metrics"],
+                   **result["test_metrics"]}
+        for split in ("train", "val", "test"):
+            metrics.pop(f"{split}_y_true", None)
+            metrics.pop(f"{split}_y_pred", None)
         for k, v in metrics.items():
             if isinstance(v, np.ndarray):
                 metrics[k] = v.tolist()
@@ -983,9 +995,16 @@ def main():
         metrics["task"] = args.task
         metrics["detection"] = result["reason"]
         metrics["corrections"] = result["corrections"]
+        metrics["diagnosis"] = result.get("diagnosis", {}).get("diagnosis")
+        metrics["generalization_gap"] = result.get("diagnosis", {}).get(
+            "signals", {}).get("generalization_gap")
+        metrics["best_epoch"] = result.get("diagnosis", {}).get(
+            "signals", {}).get("best_epoch")
         report[name] = metrics
-        print(f"[eval] {name}\n  val : {summarize(metrics, 'val') or 'n/a'}\n"
-              f"  test: {summarize(metrics, 'test') or 'n/a'}")
+        print(f"[eval] {name}\n  train: {summarize(metrics, 'train') or 'n/a'}\n"
+              f"  val : {summarize(metrics, 'val') or 'n/a'}\n"
+              f"  test: {summarize(metrics, 'test') or 'n/a'}\n"
+              f"  {summarize_diagnosis(result.get('diagnosis', {}))}")
 
     out = os.path.join(REPORT_DIR, f"train_{args.dataset}_{stamp}.json")
     with open(out, "w") as f:
@@ -996,7 +1015,8 @@ def main():
         print(f"  {name:22s} test_rmse={m.get('test_rmse', float('nan')):.3f} "
               f"test_mae={m.get('test_mae', float('nan')):.3f} "
               f"test_r2={m.get('test_r2', float('nan')):.3f} "
-              f"test_f1={m.get('test_f1', float('nan')):.3f}")
+              f"test_f1={m.get('test_f1', float('nan')):.3f} "
+              f"diagnosis={m.get('diagnosis', 'n/a')}")
 
 
 if __name__ == "__main__":
